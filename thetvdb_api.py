@@ -5,6 +5,13 @@ import requests
 import datetime
 
 
+def get_airdate(data):
+    try:
+        return datetime.datetime.strptime(data.get('firstAired', '0-0-0'), '%Y-%m-%d').date()
+    except ValueError:
+        return datetime.datetime.fromtimestamp(0).date()
+
+
 class TheTVDBAPI:
     API_KEY = "87EF0C7BB9CA4283"
     url = 'https://api.thetvdb.com/'
@@ -67,12 +74,9 @@ class TheTVDBAPI:
                     'Caught Exception "{}" while making a get-request to "{}"'.format(e.__class__, url))
                 return
 
-    def get_current_episode(self, tvdb_show):
-        responses = self._make_request(self.url + 'series/{}/episodes'.format(tvdb_show.tvdb_id))
-        newest_episode = max([(r.get('firstAired','0-0-0'), r) for r in responses])
-        print(newest_episode)
-        se, ep = newest_episode.get('airedSeason', 0), newest_episode.get('airedEpisode', 0)
-        return int(se) if se.isdigit() else 0, int(ep) if ep.isdigit() else 0
+    def get_episode_data(self, tvdb_show):
+        episodes_ = self._make_request(self.url + 'series/{}/episodes'.format(tvdb_show.tvdb_id))
+        return self._validate_response_to_json(episodes_)
 
     def get_imdb_id_from_tvdb_id(self, tvdb_id):
         response = self._make_request(self.url + 'series/{}'.format(tvdb_id))
@@ -81,20 +85,68 @@ class TheTVDBAPI:
 
 
 class TVDBShow:
-    def __init__(self, json_result, api):
+    def __init__(self, json_result, api_):
         self.raw = json_result
-        self.api = api
-        try:
-            self.aired = datetime.datetime.strptime(json_result.get('firstAired', '1970-1-1'), '%Y-%m-%d').date()
-        except ValueError:
-            self.aired = datetime.datetime.fromtimestamp(0).date()
+        self.api = api_
 
+        self.aired = get_airdate(json_result)
         self.name = json_result.get('seriesName', '')
         self.tvdb_id = json_result.get('id', '0')
-        self.imdb_id = api.get_imdb_id_from_tvdb_id(self.tvdb_id)
+        self.imdb_id = api_.get_imdb_id_from_tvdb_id(self.tvdb_id)
 
-    def get_current_episode(self):
-        return self.api.get_current_episode(self)
+        self.seasons = {}
+        self.episodes = []
+        for ep_j in api_.get_episode_data(self):
+            self._add_episode(Episode(ep_j))
+
+    def _add_episode(self, episode):
+        if episode:
+            self.episodes.append(episode)
+            if episode.season in self.seasons.keys():
+                self.seasons[episode.season].add_episode(episode)
+            else:
+                self.seasons[episode.season] = Season(episode)
+
+    def get_newest_episode(self):
+        today = datetime.date.today()
+        episodes_ = [ep for ep in self.episodes if ep.date <= today]
+        return max(episodes_, key=lambda ep: ep.date) if episodes_ else {}
 
     def __str__(self):
         return '{} [{}]'.format(self.name, self.imdb_id)
+
+
+class Season:
+    def __init__(self, init_episode):
+        self.season = init_episode.season
+        self.episodes = [init_episode]
+
+    def add_episode(self, episode):
+        if episode not in self.episodes:
+            self.episodes.append(episode)
+
+
+class Episode:
+    def __init__(self, json_data):
+        self.season = self._get_if_true(json_data, 'airedSeason', 0)
+        self.episode = self._get_if_true(json_data, 'airedEpisodeNumber', 0)
+        self.name = json_data.get('episodeName', '')
+        self.date = get_airdate(json_data)
+        self.absolute_episode_number = self._get_if_true(json_data, 'absoluteNumber', 0)
+
+    @staticmethod
+    def _get_if_true(data, value, default):
+        item = data.get(value, default)
+        return default if not item else item
+
+    def __str__(self):
+        return "s{s.season:02}e{s.episode:02}: {s.name} [{s.absolute_episode_number}]".format(s=self)
+
+    def __bool__(self):
+        return bool(self.name)
+
+
+if __name__ == '__main__':
+    api = TheTVDBAPI()
+    flash = api.get_show_by_imdb_id('tt3107288')
+    flash.get_newest_episode()
