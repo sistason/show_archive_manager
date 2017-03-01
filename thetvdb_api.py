@@ -1,3 +1,4 @@
+import re
 import json
 import time
 import logging
@@ -112,18 +113,41 @@ class TVDBShow:
         episodes_ = [ep for ep in self.episodes if ep.date <= today]
         return max(episodes_, key=lambda ep: ep.date) if episodes_ else {}
 
+    def get_episodes_since(self, date):
+        today = datetime.date.today()
+        return [ep for ep in self.episodes if date <= ep.date <= today]
+
     def __str__(self):
         return '{} [{}]'.format(self.name, self.imdb_id)
 
+    def str_verbose(self):
+        return "{}\n{}".format(str(self), '\t\n'.join(map(lambda f: f.str_verbose(), self.seasons.values())))
+
 
 class Season:
+    FORMAT = "Season {}"
+
     def __init__(self, init_episode):
-        self.season = init_episode.season
+        self.number = init_episode.season
         self.episodes = [init_episode]
 
     def add_episode(self, episode):
         if episode not in self.episodes:
             self.episodes.append(episode)
+
+    def get_aired_episodes(self):
+        today = datetime.date.today()
+        return [ep for ep in self.episodes if ep.date <= today]
+
+    def get_season_from_string(self, string_):
+        match = re.match(self.FORMAT.format('(\d+)'), string_)
+        return match.group(1) if match else 0
+
+    def __str__(self):
+        return self.FORMAT.format(self.number)
+
+    def str_verbose(self):
+        return "{}: {}".format(str(self), ', '.join(map(lambda f: f.str_verbose(), self.episodes)))
 
 
 class Episode:
@@ -139,8 +163,14 @@ class Episode:
         item = data.get(value, default)
         return default if not item else item
 
+    def get_regex(self):
+        return re.compile(r'(?i)s?0*{s.season}[ex]0*{s.episode}'.format(s=self))
+
     def __str__(self):
-        return "s{s.season:02}e{s.episode:02}: {s.name} [{s.absolute_episode_number}]".format(s=self)
+        return "s{s.season:02}e{s.episode:02}".format(s=self)
+
+    def str_verbose(self):
+        return "{}: {} [#{}]".format(str(self), self.name, self.absolute_episode_number)
 
     def __bool__(self):
         return bool(self.name)
@@ -149,4 +179,4 @@ class Episode:
 if __name__ == '__main__':
     api = TheTVDBAPI()
     flash = api.get_show_by_imdb_id('tt3107288')
-    flash.get_newest_episode()
+    print(flash.get_newest_episode())
