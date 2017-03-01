@@ -3,21 +3,28 @@ import logging
 import os
 
 from argument_to_show import Argument2Show
+from show_status_todo import Show2Status
 
 
 class ShowManager:
-    def __init__(self, shows, download_dir, auth, cleanup_premiumize=True):
+    def __init__(self, shows, download_directory, auth, cleanup_premiumize=True):
         self.cleanup_premiumize = cleanup_premiumize
-        self.download_dir = download_dir
+        self.download_dir = download_directory
 
         self.premiumize_login = {}
         self._store_auth(auth)
 
+        imdb_shows = self._parse_arguments(shows)
+        self.shows = self._get_show_status(imdb_shows)
+
+    @staticmethod
+    def _parse_arguments(shows):
         arg2show = Argument2Show()
-        imdb_shows = [arg2show.argument2show(s) for s in shows]
+        return [arg2show.argument2show(s) for s in shows]
 
-        self.shows = [s for s in imdb_shows]
-
+    def _get_show_status(self, imdb_shows):
+        show2status = Show2Status(self.download_dir)
+        return [show2status.analyse(s) for s in imdb_shows]
 
     def _store_auth(self, auth):
         if auth and os.path.exists(auth):
