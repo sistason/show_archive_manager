@@ -8,7 +8,7 @@ import datetime
 
 def get_airdate(data):
     try:
-        return datetime.datetime.strptime(data.get('firstAired', '0-0-0'), '%Y-%m-%d').date()
+        return datetime.datetime.strptime(data.get('firstAired', '1970-1-1'), '%Y-%m-%d').date()
     except ValueError:
         return datetime.datetime.fromtimestamp(0).date()
 
@@ -32,7 +32,7 @@ class TheTVDBAPI:
         ret = requests.post(self.url + "login", data=data, headers={'Content-Type': 'application/json'})
         if ret.ok:
             ret_j = json.loads(ret.text)
-            return ret_j.get('token', None)
+            return ret_j.get('token')
 
     def get_shows_by_search(self, search, year=None):
         url = self.url + 'search/series?name={}'.format(search)
@@ -52,13 +52,13 @@ class TheTVDBAPI:
 
     @staticmethod
     def _filter_search_by_year(responses, year):
-        return [r for r in responses if r.get('firstAired', '0-0-0').split('-')[0] == str(year)]
+        return [r for r in responses if str(get_airdate(r).year) == str(year)]
 
     @staticmethod
     def _validate_response_to_json(response):
         if response is not None and response.ok:
             ret_j = json.loads(response.text)
-            return ret_j.get('data', [])
+            return ret_j.get('data', []) if not ret_j.get('errors') else ret_j.get('errors')
         return []
 
     def _make_request(self, url, data=None):
@@ -75,9 +75,21 @@ class TheTVDBAPI:
                     'Caught Exception "{}" while making a get-request to "{}"'.format(e.__class__, url))
                 return
 
-    def get_episode_data(self, tvdb_show):
-        episodes_ = self._make_request(self.url + 'series/{}/episodes'.format(tvdb_show.tvdb_id))
-        return self._validate_response_to_json(episodes_)
+    def get_episode_data(self, tvdb_show, page=1):
+        data = []
+        response = self._make_request(self.url + 'series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
+        if response is not None and response.ok:
+            ret_j = json.loads(response.text)
+            data.extend(ret_j.get('data', []))
+            errors = ret_j.get('errors')
+            if errors:
+                logging.warning('Getting episode_data for show "{}" showed errors: {}'.format(tvdb_show, errors))
+                return []
+            next_ = ret_j.get('links', {}).get('next')
+            if next_ is not None:
+                data.extend(self.get_episode_data(tvdb_show, page=next_))
+
+        return data
 
     def get_imdb_id_from_tvdb_id(self, tvdb_id):
         response = self._make_request(self.url + 'series/{}'.format(tvdb_id))
@@ -99,6 +111,9 @@ class TVDBShow:
         self.episodes = []
         for ep_j in api_.get_episode_data(self):
             self._add_episode(Episode(ep_j))
+
+        if not self.seasons:
+            logging.error('Could not get show data of "{}"!'.format(self.name))
 
     def _add_episode(self, episode):
         if episode:
@@ -122,6 +137,9 @@ class TVDBShow:
 
     def str_verbose(self):
         return "{}\n{}".format(str(self), '\t\n'.join(map(lambda f: f.str_verbose(), self.seasons.values())))
+
+    def __bool__(self):
+        return bool(self.name) and bool(self.seasons)
 
 
 class Season:
@@ -164,7 +182,7 @@ class Episode:
         return default if not item else item
 
     def get_regex(self):
-        return re.compile(r'(?i)s?0*{s.season}[ex]0*{s.episode}'.format(s=self))
+        return re.compile(r'(?i)s?0*{s.season}[ex]0*{s.episode}\D'.format(s=self))
 
     def __str__(self):
         return "s{s.season:02}e{s.episode:02}".format(s=self)

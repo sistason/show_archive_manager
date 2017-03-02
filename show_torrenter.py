@@ -6,13 +6,24 @@ import bs4
 
 
 QUALITY_REGEX = {
-    '1080p': re.compile(r'(?i)1080p'),
-    '480p': re.compile(r'(?i)480p|HDTV'),
-    '720p': re.compile(r'(?i)720p'),
-    'x264': re.compile(r'(?i)[hx]264'),
-    'x265': re.compile(r'(?i)[hx]265'),
-    'xvid': re.compile(r'(?i)XviD'),
+    'quality': {
+        '1080p': re.compile(r'(?i)1080p'),
+        '480p': re.compile(r'(?i)480p|HDTV'),
+        '720p': re.compile(r'(?i)720p'),
+    },
+    'encoder': {
+        'x264': re.compile(r'(?i)[hx]264'),
+        'x265': re.compile(r'(?i)[hx]265'),
+        'xvid': re.compile(r'(?i)XviD'),
+    }
 }
+
+
+class ShowDownload:
+    def __init__(self, status):
+        self.status = status
+        self.download_links_newest = None
+        self.download_links_missing = None
 
 
 class Status2Torrent:
@@ -22,44 +33,45 @@ class Status2Torrent:
         self.headers = {}
 
     def get_torrent(self, status):
-        links = self._get_episodes(status.show.name, status.episodes_behind)
+        show_download = ShowDownload(status)
+        show_download.download_links_newest = self.get_episodes(status.show.name, status.episodes_behind)
+        logging.debug('Found {} links to get "{}" up-to-date'.format(len(status.download_links), status.show.name))
         if self.update_missing:
-            links.extend(self._get_episodes(status.show.name, status.episodes_holes))
+            show_download.download_links_missing = self.get_episodes(status.show.name, status.episodes_holes)
+            logging.debug('Found {} links to get "{}" complete'.format(len(status.download_links), status.show.name))
 
-        return links
+        return show_download
 
-    def _get_episodes(self, name, episodes):
-        links = []
+    def get_episodes(self, name, episodes):
+        links_ = []
         for episode in episodes:
-            found_links = self._search_piratebay("{} {}".format(name, str(episode)))
-            match = self._filter_searches(found_links, episode)
-            if match:
-                links.append(match)
+            found_links = self._search(name, episode)
+            print(found_links)
+            url = self._to_url(self._filter_searches(found_links, episode))
+            if url:
+                links_.append(url)
 
-        return links
+        return links_
 
-    def _filter_searches(self, links, episode):
+    def _search(self, name, episode):
+        return NotImplementedError
+
+    def _to_url(self, match):
+        return NotImplementedError
+
+    def _filter_searches(self, links_, episode):
         """ Return the first matching link (the earlier, the better matching) """
-        for link in links:
+        for link in links_:
             if self._torrent_matches(link.text, episode):
                 return link
 
     def _torrent_matches(self, title, episode):
-        for filter in [episode.get_regex(),
-                       QUALITY_REGEX.get(self.quality.get('encoder')),
-                       QUALITY_REGEX.get(self.quality.get('quality'))]:
-            if not filter.search(title):
+        for filter_ in [episode.get_regex(),
+                        QUALITY_REGEX['encoder'].get(self.quality.get('encoder')),
+                        QUALITY_REGEX['quality'].get(self.quality.get('quality'))]:
+            if not filter_.search(title):
                 return False
         return True
-
-    def _search_piratebay(self, query):
-        response = self._make_request('https://thepiratebay.org/search/{}/0/99/205'.format(query))
-        if response.ok:
-            return self._parse_piratebay_response(response.text)
-
-    def _parse_piratebay_response(self, text):
-        bs4_ = bs4.BeautifulSoup(text, "html5lib")
-        return bs4_.find_all('a', attrs={'class': 'detLink'})
 
     def _make_request(self, url, data=None):
         """ Do a request, take care of timeouts and exceptions """
@@ -76,9 +88,31 @@ class Status2Torrent:
                 return
 
 
-if __name__ == '__main__':
-    s2t = Status2Torrent({'quality': '720p', 'encoder': 'x264'})
-    from thetvdb_api import Episode
-    links = s2t._get_episodes('supergirl', [Episode({'airedSeason': 2, 'airedEpisodeNumber': 13})])
-    print([l.attrs.get('href', None) for l in links])
+class Status2Piratebay(Status2Torrent):
+    url = 'https://thepiratebay.org'
 
+    def _search(self, name, episode):
+        query = "{} {}".format(name, str(episode))
+        print(query)
+        response = self._make_request(self.url + '/search/{}/0/99/205'.format(query))
+        if response.ok:
+            return self._parse_piratebay_response(response.text)
+
+    @staticmethod
+    def _parse_piratebay_response(text):
+        bs4_ = bs4.BeautifulSoup(text, "html5lib")
+        return bs4_.find_all('a', attrs={'class': 'detLink'})
+
+    def _to_url(self, match):
+        try:
+            return self.url + match.attrs.get('href')
+        except (AttributeError, TypeError):
+            return None
+
+SITES = {'piratebay': Status2Piratebay, 'default': Status2Piratebay}
+
+if __name__ == '__main__':
+    s2t = Status2Piratebay({'quality': '720p', 'encoder': 'x264'})
+    from thetvdb_api import Episode
+    links = s2t.get_episodes('supergirl', [Episode({'airedSeason': 2, 'airedEpisodeNumber': 13})])
+    print(links)
