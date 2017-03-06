@@ -8,8 +8,8 @@ import datetime
 
 def get_airdate(data):
     try:
-        return datetime.datetime.strptime(data.get('firstAired', '1970-1-1'), '%Y-%m-%d').date()
-    except ValueError:
+        return datetime.datetime.strptime(data.get('firstAired'), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
         return datetime.datetime.fromtimestamp(0).date()
 
 
@@ -17,12 +17,14 @@ class TheTVDBAPI:
     API_KEY = "87EF0C7BB9CA4283"
     url = 'https://api.thetvdb.com/'
 
-    def __init__(self):
+    def __init__(self, test=False):
         logging.getLogger("requests").setLevel(logging.WARNING)
 
-        self.jwt_token = self.login()
-        if not self.jwt_token:
-            logging.error('Could not login to TheTVDB-API. Invalid API-Key?')
+        self.jwt_token = ''
+        if not test:
+            self.jwt_token = self.login()
+            if not self.jwt_token:
+                logging.error('Could not login to TheTVDB-API. Invalid API-Key?')
 
         self.headers = {'Accept-Language': 'en', 'Accept': 'application/json',
                         'Authorization': 'Bearer {}'.format(self.jwt_token)}
@@ -59,7 +61,7 @@ class TheTVDBAPI:
         if response is not None and response.ok:
             ret_j = json.loads(response.text)
             return ret_j.get('data', []) if not ret_j.get('errors') else ret_j.get('errors')
-        return []
+        return {}
 
     def _make_request(self, url, data=None):
         """ Do a request, take care of timeouts and exceptions """
@@ -159,7 +161,7 @@ class Season:
 
     def get_season_from_string(self, string_):
         match = re.match(self.FORMAT.format('(\d+)'), string_)
-        return match.group(1) if match else 0
+        return int(match.group(1)) if match else 0
 
     def __str__(self):
         return self.FORMAT.format(self.number)
@@ -170,19 +172,23 @@ class Season:
 
 class Episode:
     def __init__(self, json_data):
-        self.season = self._get_if_true(json_data, 'airedSeason', 0)
-        self.episode = self._get_if_true(json_data, 'airedEpisodeNumber', 0)
+        self.season = self._get_int_if_true(json_data, 'airedSeason', 0)
+        self.episode = self._get_int_if_true(json_data, 'airedEpisodeNumber', 0)
         self.name = json_data.get('episodeName', '')
         self.date = get_airdate(json_data)
-        self.absolute_episode_number = self._get_if_true(json_data, 'absoluteNumber', 0)
+        self.absolute_episode_number = self._get_int_if_true(json_data, 'absoluteNumber', 0)
 
     @staticmethod
-    def _get_if_true(data, value, default):
+    def _get_int_if_true(data, value, default):
         item = data.get(value, default)
-        return default if not item else item
+        if type(item) is int:
+            return item
+        if type(item) is str and item.isdigit():
+            return int(item)
+        return default
 
     def get_regex(self):
-        return re.compile(r'(?i)s?0*{s.season}[ex]0*{s.episode}\D'.format(s=self))
+        return re.compile(r'(?i)s?0*(?P<season>{s.season})[ex]0*(?P<episode>{s.episode})(?!\d)'.format(s=self))
 
     def __str__(self):
         return "s{s.season:02}e{s.episode:02}".format(s=self)
@@ -193,8 +199,13 @@ class Episode:
     def __bool__(self):
         return bool(self.name)
 
+    def __eq__(self, other):
+        return (other and self.season == other.season and self.episode == other.episode and
+                self.absolute_episode_number == other.absolute_episode_number and self.name == other.name)
+
 
 if __name__ == '__main__':
+    import sys
     api = TheTVDBAPI()
-    flash = api.get_show_by_imdb_id('tt3107288')
-    print(flash.get_newest_episode())
+    show = api.get_show_by_imdb_id(sys.argv[1])
+    print(show.get_newest_episode())

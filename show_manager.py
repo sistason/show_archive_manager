@@ -24,8 +24,8 @@ class ShowManager:
     def manage(self, shows):
         tvdb_shows = self._parse_arguments(shows)
         show_states = self._get_show_states(tvdb_shows)
-        show_download = self._get_torrents(show_states)
-        self._download_torrents(show_download)
+        show_downloads = self._get_torrents(show_states)
+        self._download_torrents(show_downloads)
 
     @staticmethod
     def _parse_arguments(show_arguments):
@@ -41,9 +41,10 @@ class ShowManager:
         status2torrent = torrent_site(self.quality, update_missing=self.update_missing)
         return [status2torrent.get_torrent(s) for s in show_states]
 
-    def _download_torrents(self, show_download):
+    def _download_torrents(self, show_downloads):
         torrent2download = Torrent2Download(self.downloader, self.login, self.download_directory)
-        [torrent2download.download(s) for s in show_download]
+        torrent2download.download(show_downloads)
+        return torrent2download.join()
 
     def _store_auth(self, auth):
         if auth and os.path.exists(auth):
