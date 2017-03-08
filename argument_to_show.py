@@ -28,9 +28,10 @@ class Argument2Show:
         if shows:
             logging.debug('Found matches "{}" for argument "{}"'.format(','.join(map(str, shows)), title))
 
+            # TODO: Interactive as a solution to multiples?
             # best_result, result_ratio = max(map(lambda r: (fuzz.token_set_ratio(r, title), r), results))
-            best_result = max([s for s in shows if s.raw.get('status','') == 'Continuing'],
-                              key=lambda s: len(s.raw.get('overview', '')))
+            best_result = max([s for s in shows if s.raw.get('status', '') == 'Continuing' and s.raw.get('overview')],
+                              key=lambda s: len(s.raw.get('overview')))
             logging.debug('Best result for Argument "{}" is Show "{}"'.format(title, best_result))
 
             return best_result

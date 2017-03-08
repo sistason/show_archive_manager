@@ -10,8 +10,6 @@ from argument_to_show import Argument2Show
 class Argument2ShowTester(unittest.TestCase):
 
     def setUp(self):
-        logging.basicConfig(format='%(message)s',
-                            level=logging.DEBUG)
         self._class = Argument2Show()
 
     def test_api_login(self):
@@ -32,7 +30,7 @@ class Argument2ShowTester(unittest.TestCase):
         assert_that(result, equal_to(None))
 
     def test_specified_multiples(self):
-        result = self._class.argument2show('doctor who 2009')
+        result = self._class.argument2show('doctor who 2005')
         assert_that(result, not_none())
         assert_that(result.imdb_id, equal_to('tt0436992'))
 

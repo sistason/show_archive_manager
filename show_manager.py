@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import asyncio
 import logging
 import os
 
@@ -42,9 +43,12 @@ class ShowManager:
         return [status2torrent.get_torrent(s) for s in show_states]
 
     def _download_torrents(self, show_downloads):
-        torrent2download = Torrent2Download(self.downloader, self.login, self.download_directory)
-        torrent2download.download(show_downloads)
-        return torrent2download.join()
+        with asyncio.get_event_loop() as event_loop:
+            torrent2download = Torrent2Download(self.downloader, self.login,
+                                                self.download_directory, event_loop=event_loop)
+            [torrent2download.enqueue(s) for s in show_downloads]
+
+            event_loop.run_until_complete(torrent2download.download())
 
     def _store_auth(self, auth):
         if auth and os.path.exists(auth):

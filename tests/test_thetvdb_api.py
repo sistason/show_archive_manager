@@ -6,14 +6,12 @@ import datetime
 
 from hamcrest import *
 from thetvdb_api import TheTVDBAPI, TVDBShow, Season, Episode
-
-EPISODE_MOCK = {'airedSeason': '2', 'airedEpisodeNumber': '13', 'episodeName': 'That One Episode',
-                               'firstAired': '1970-2-1', 'absoluteNumber': '1337'}
+from tests.test_mocks import SINGLE_EPISODE_MOCK, TheTVDBAPI_MOCK, SINGLE_TVDBSHOW_MOCK, SINGLE_EPISODE_DATA_MOCK
 
 
 class TheTVDBAPITester(unittest.TestCase):
     def setUp(self):
-        self._class = TheTVDBAPI()
+        self._class = TheTVDBAPI_MOCK
 
     def test_total_by_imdb_id(self):
         supergirl_show = self._class.get_show_by_imdb_id('tt4016454')
@@ -28,25 +26,26 @@ class TheTVDBAPITester(unittest.TestCase):
     @staticmethod
     def _test_show_content(supergirl_show):
         assert_that(supergirl_show.imdb_id, equal_to('tt4016454'))
-        assert_that(supergirl_show.tvdb_id, equal_to('295759'))
+        assert_that(supergirl_show.tvdb_id, equal_to(295759))
         assert_that(supergirl_show.name, equal_to('Supergirl'))
         assert_that(supergirl_show.aired.strftime('%s'), equal_to('1445814000'))
-        assert_that(supergirl_show.seasons, is_not({}))
-        assert_that(supergirl_show.episodes, is_not([]))
+        assert_that(len(supergirl_show.seasons), equal_to(2))
+        assert_that(len(supergirl_show.episodes), equal_to(37))
+
 
 class TVDBShowTester(unittest.TestCase):
     def setUp(self):
 
         api_mock = TheTVDBAPI(test=True)
-        api_mock.get_episode_data = MagicMock(return_value=[EPISODE_MOCK])
+        api_mock.get_episode_data = MagicMock(return_value=[SINGLE_EPISODE_DATA_MOCK])
         api_mock.get_imdb_id_from_tvdb_id = MagicMock(return_value='tt4016454')
 
-        self._class = TVDBShow({'seriesName': 'Supergirl', 'id': '295759', 'firstAired': '1970-1-1'}, api_mock)
+        self._class = TVDBShow(SINGLE_TVDBSHOW_MOCK, api_mock)
 
     def test_init(self):
         assert_that(len(self._class.seasons), equal_to(1))
         assert_that(list(self._class.seasons.keys()), equal_to([2]))
-        assert_that(self._class.episodes, equal_to([Episode(EPISODE_MOCK)]))
+        assert_that(self._class.episodes, equal_to([SINGLE_EPISODE_MOCK]))
         assert_that(self._class.aired.strftime('%s'), equal_to('-3600'))
         assert_that(self._class.name, equal_to('Supergirl'))
         assert_that(self._class.tvdb_id, equal_to('295759'))
@@ -57,14 +56,14 @@ class TVDBShowTester(unittest.TestCase):
         assert_that(self._class.get_newest_episode(), equal_to(self._class.episodes[0]))
         assert_that(self._class.get_episodes_since(self._class.aired), equal_to(self._class.episodes))
 
-        new_episode = EPISODE_MOCK.copy()
+        new_episode = SINGLE_EPISODE_DATA_MOCK.copy()
         new_episode['firstAired'] = '1970-01-01'
         new_episode = Episode(new_episode)
         self._class._add_episode(new_episode)
         assert_that(self._class.get_newest_episode(), equal_to(self._class.episodes[0]))
         assert_that(self._class.get_episodes_since(today), equal_to([]))
 
-        new_episode = EPISODE_MOCK.copy()
+        new_episode = SINGLE_EPISODE_DATA_MOCK.copy()
         new_episode['firstAired'] = '2001-05-06'
         new_episode = Episode(new_episode)
         self._class._add_episode(new_episode)
@@ -78,7 +77,7 @@ class TVDBShowTester(unittest.TestCase):
 
 class SeasonTester(unittest.TestCase):
     def setUp(self):
-        self.episode = Episode(EPISODE_MOCK)
+        self.episode = SINGLE_EPISODE_MOCK
         self._class = Season(self.episode)
 
     def test_init(self):
@@ -89,7 +88,7 @@ class SeasonTester(unittest.TestCase):
         assert_that(len(self._class.episodes), equal_to(1))
         self._class.add_episode(self.episode)
         assert_that(len(self._class.episodes), equal_to(1))
-        episode = EPISODE_MOCK.copy()
+        episode = SINGLE_EPISODE_DATA_MOCK.copy()
         episode['absoluteNumber'] = 9001
         self._class.add_episode(Episode(episode))
         assert_that(len(self._class.episodes), equal_to(2))
@@ -110,7 +109,7 @@ class SeasonTester(unittest.TestCase):
 
 class EpisodeTester(unittest.TestCase):
     def setUp(self):
-        self._class = Episode(EPISODE_MOCK)
+        self._class = SINGLE_EPISODE_MOCK
 
     def test_init(self):
         assert_that(self._class.season, equal_to(2))
@@ -126,6 +125,7 @@ class EpisodeTester(unittest.TestCase):
         assert_that(_class.name, equal_to(None))
         assert_that(_class.date.strftime('%s'), equal_to('-3600'))
         assert_that(_class.absolute_episode_number, equal_to(0))
+        assert_that(_class, is_not(self._class))
 
     def test_regex(self):
         searches_ = ['Foo S02E13', 'Bar 2x13']

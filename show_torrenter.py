@@ -22,8 +22,11 @@ QUALITY_REGEX = {
 class ShowDownload:
     def __init__(self, status):
         self.status = status
-        self.download_links_newest = None
+        self.download_links_behind = None
         self.download_links_missing = None
+
+    def __str__(self):
+        return str(self.status)
 
 
 class Status2Torrent:
@@ -34,11 +37,13 @@ class Status2Torrent:
 
     def get_torrent(self, status):
         show_download = ShowDownload(status)
-        show_download.download_links_newest = self.get_episodes(status.show.name, status.episodes_behind)
-        logging.debug('Found {} links to get "{}" up-to-date'.format(len(status.download_links), status.show.name))
+        show_download.download_links_behind = self.get_episodes(status.show.name, status.episodes_behind)
+        logging.debug('Found {} links to get "{}" up-to-date'.format(len(show_download.download_links_behind),
+                                                                     status.show.name))
         if self.update_missing:
-            show_download.download_links_missing = self.get_episodes(status.show.name, status.episodes_holes)
-            logging.debug('Found {} links to get "{}" complete'.format(len(status.download_links), status.show.name))
+            show_download.download_links_missing = self.get_episodes(status.show.name, status.episode_holes)
+            logging.debug('Found {} links to get "{}" complete'.format(len(show_download.download_links_missing),
+                                                                       status.show.name))
 
         return show_download
 
@@ -46,7 +51,6 @@ class Status2Torrent:
         links_ = []
         for episode in episodes:
             found_links = self._search(name, episode)
-            print(found_links)
             url = self._to_url(self._filter_searches(found_links, episode))
             if url:
                 links_.append(url)
@@ -93,7 +97,6 @@ class Status2Piratebay(Status2Torrent):
 
     def _search(self, name, episode):
         query = "{} {}".format(name, str(episode))
-        print(query)
         response = self._make_request(self.url + '/search/{}/0/99/205'.format(query))
         if response.ok:
             return self._parse_piratebay_response(response.text)

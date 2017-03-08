@@ -45,7 +45,8 @@ class TheTVDBAPI:
         return [self._json_to_show(r) for r in responses]
 
     def get_show_by_imdb_id(self, imdb_id):
-        response = self._make_request(self.url + 'search/series?imdbId={}'.format(imdb_id))
+        url = self.url + 'search/series?imdbId={}'.format(imdb_id)
+        response = self._make_request(url)
         responses = self._validate_response_to_json(response)
         return self._json_to_show(responses[0]) if responses else None
 
@@ -106,7 +107,7 @@ class TVDBShow:
 
         self.aired = get_airdate(json_result)
         self.name = json_result.get('seriesName', '')
-        self.tvdb_id = json_result.get('id', '0')
+        self.tvdb_id = json_result.get('id', 0)
         self.imdb_id = api_.get_imdb_id_from_tvdb_id(self.tvdb_id)
 
         self.seasons = {}
