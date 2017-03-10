@@ -1,25 +1,32 @@
+import os
 import asyncio
-import time
 import logging
 
 from premiumize_me_dl.premiumize_me_download import PremiumizeMeDownloader
 
-
 DOWNLOADERS = {'premiumize.me': PremiumizeMeDownloader, 'default': PremiumizeMeDownloader}
+
+
+class Download:
+    def __init__(self, show, episode, upload):
+        self.show = show
+        self.episode = episode
+        self.upload = upload
 
 
 class Torrent2Download:
     CHECK_EVERY = 5
 
-    def __init__(self, downloader, login, download_directory, event_loop=None):
+    def __init__(self, downloader, login, download_directory, event_loop, cleanup=True):
         super().__init__()
         self.downloader_login = login
         self.download_directory = download_directory
+        self.cleanup = cleanup
 
         self.shutdown = False
         self.event_loop = event_loop
-        self.download_queue = asyncio.Queue()
         self.transfers = []
+        self.upload_ids = []
 
         downloader_class = DOWNLOADERS.get(downloader) if downloader in DOWNLOADERS else DOWNLOADERS.get('default')
         self.torrent2download = downloader_class(self.download_directory, self.downloader_login, self.event_loop)
@@ -28,100 +35,102 @@ class Torrent2Download:
         self.shutdown = True
         self.torrent2download.close()
 
-    def enqueue(self, show_download_):
-        self.download_queue.put_nowait(show_download_)
-
-    async def download(self):
+    async def download(self, show_download):
         await self._update_transfers()
-
-        while not self.download_queue.empty():
-            show_download_ = await self.download_queue.get()
-            if show_download_:
-                self._download_show(show_download_)
-
-            self.download_queue.task_done()
-
-        await self.download_queue.join()
-        self.close()
+        await self._download_show(show_download)
 
     async def _update_transfers(self):
+        if self.shutdown:
+            return
         self.transfers = await self.torrent2download.get_transfers()
-        if not self.shutdown:
-            self.event_loop.call_later(self.CHECK_EVERY, self._update_transfers())
+        self.event_loop.call_later(self.CHECK_EVERY, self._update_transfers)
 
-    async def _download_show(self, show_download_):
-        uploads = await self._start_torrenting_links(show_download_)
-        for upload in uploads:
-            await self._wait_torrenting(upload)
-            await self._download(show_download_, upload)
-            await self._cleanup(upload)
+    async def _download_show(self, show_download):
+        logging.info('Downloading {}...'.format(show_download.status.show.name))
+        downloads = await self._start_torrenting(show_download)
+        for download in downloads:
+            await self._wait_torrenting(download)
+            await self._download(show_download, download)
+            await self._cleanup(download)
 
-    async def _start_torrenting_links(self, show_download):
-        logging.info('Start torrenting {}...'.format(show_download))
+    async def _start_torrenting(self, show_download):
+        logging.info('Start torrenting {}...'.format(show_download.status.show.name))
 
-        behind_uploads = await self._upload(show_download.download_links_behind)
-        missing_uploads = await self._upload(show_download.download_links_missing)
+        downloads = []
+        print(show_download.torrents_behind)
+        print(show_download.torrents_missing)
+        for torrent in show_download.torrents_behind+show_download.torrents_missing:
+            for link in torrent.links:
+                upload_ = await self.torrent2download.upload(link)
+                if upload_.worked():
+                    if upload_.id not in self.upload_ids:
+                        self.upload_ids.append(upload_.id)
+                        downloads.append(Download(show_download.status.show, torrent.episode, upload_))
+                        break
+                    logging.warning('Torrent "{}" for episode "{}" was a duplicate, '
+                                    'possibly bad downloads, check the downloads!'.format(link, torrent.episode))
+        return downloads
 
-        return behind_uploads + missing_uploads
-
-    async def _upload(self, links_to_upload):
-        uploads_ = []
-        for link in links_to_upload:
-            upload_ = await self.torrent2download.upload(link)
-            if upload_.worked():
-                uploads_.append(upload_)
-        return uploads_
-
-    async def _wait_torrenting(self, upload):
-        logging.info('Wait while torrenting {}...'.format(upload.name))
+    async def _wait_torrenting(self, download):
+        logging.info('Wait while torrenting {}...'.format(download.show.name))
 
         while True:
-            transfer = self._get_torrent_transfer(upload)
-            if not transfer.is_running():
+            transfer = self._get_torrent_transfer(download.upload)
+            if not transfer or not transfer.is_running():
                 if transfer.status == 'error':
-                    logging.error('Error torrenting {}!'.format(upload.name))
+                    logging.error('Error torrenting {}!'.format(download.show.name))
+                if not transfer:
+                    logging.error('Error torrenting {}, torrent not found anymore!'.format(download.show.name))
                 break
             await asyncio.sleep(self.CHECK_EVERY/2)
 
-        logging.info('Finished torrenting {}'.format(upload.name))
+        logging.info('Finished torrenting {}'.format(download.show.name))
 
     def _get_torrent_transfer(self, upload):
         for transfer in self.transfers:
             if transfer.id == upload.id:
                 return transfer
 
-    async def _download(self, show_download, upload):
-        print('downloading...')
+    async def _download(self, show_download, download):
+        episode_directory = os.path.join(self.download_directory, str(download.show.name),
+                                         str(download.show.seasons.get(download.episode.season)))
+        os.makedirs(episode_directory, exist_ok=True)
+
         ...
+        logging.info('Finished torrenting {}'.format(download.show.name))
 
-    async def _cleanup(self, upload):
-        logging.info('Cleaning up {}'.format(upload.name))
+    async def _cleanup(self, download):
+        logging.info('Cleaning up {}'.format(download.show.name))
+        if self.cleanup:
+            await self.torrent2download.delete(download.upload)
 
-        await self.torrent2download.delete(upload)
+    def __bool__(self):
+        return bool(self.torrent2download)
 
 
 if __name__ == '__main__':
-    from show_torrenter import ShowDownload
+    from show_torrenter import ShowDownload, Torrent
     from show_status import ShowStatus
     from thetvdb_api import TheTVDBAPI
 
+    logging.basicConfig(format='%(message)s',
+                        level=logging.INFO)
+
     api = TheTVDBAPI()
-    show = api.get_show_by_imdb_id('tt4016454')
-    show_download = ShowDownload(ShowStatus(show, '.'))
-    show_download.download_links_behind = [
-        "https://thepiratebay.org/torrent/17226840/Supernatural.S12E14.HDTV.x264-LOL[ettv]"]
-    show_download.download_links_missing = []
+    show_ = api.get_show_by_imdb_id('tt4016454')
+    show_download_ = ShowDownload(ShowStatus(show_, '.'))
+    show_download_.torrents_behind = [Torrent(show_.episodes[10], [
+        "https://thepiratebay.org/torrent/17226840/Supernatural.S12E14.HDTV.x264-LOL[ettv]"])]
+    show_download_.torrents_missing = []
 
-    event_loop = asyncio.get_event_loop()
+    event_loop_ = asyncio.get_event_loop()
 
-    t2d = Torrent2Download('premiumize.me', '../premiumize_me_dl/auth.txt', '.', event_loop=event_loop)
-    t2d.enqueue(show_download)
-
+    t2d = Torrent2Download('premiumize.me', '../premiumize_me_dl/auth.txt', '.', event_loop=event_loop_)
     try:
-        event_loop.run_until_complete(t2d.download())
+        event_loop_.run_until_complete(t2d.download(show_download_))
     except KeyboardInterrupt:
         pass
     finally:
         t2d.close()
 
-    event_loop.close()
+    event_loop_.close()

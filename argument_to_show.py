@@ -13,6 +13,7 @@ class Argument2Show:
         self.re_year = re.compile(r'({})'.format('|'.join(map(str, range(1900, 2040)))))
 
     def argument2show(self, argument_show):
+        logging.debug('Converting argument "{}" to show...'.format(argument_show))
         if argument_show.startswith('tt'):
             return self.tvdb_api.get_show_by_imdb_id(argument_show)
 
@@ -35,3 +36,6 @@ class Argument2Show:
             logging.debug('Best result for Argument "{}" is Show "{}"'.format(title, best_result))
 
             return best_result
+
+    def __bool__(self):
+        return bool(self.tvdb_api)

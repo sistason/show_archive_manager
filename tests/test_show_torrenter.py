@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 
 import unittest
-import os
-import shutil
-import tempfile
 
 from hamcrest import *
 from tests.test_mocks import SHOW_STATUS_MOCK, SHOW_DOWNLOAD_MOCK, STATUS2PIRATEBAY_MOCK
-from show_torrenter import Status2Piratebay
 
 
 class ShowTorrenterTester(unittest.TestCase):
@@ -16,5 +12,5 @@ class ShowTorrenterTester(unittest.TestCase):
 
     def test_get_torrent(self):
         show_download = self._class.get_torrent(SHOW_STATUS_MOCK)
-        assert_that(show_download.download_links_behind, equal_to(SHOW_DOWNLOAD_MOCK.download_links_behind))
-        assert_that(show_download.download_links_missing, equal_to([]))
+        assert_that(show_download.torrents_behind[0].links, equal_to(SHOW_DOWNLOAD_MOCK.torrents_behind[0].links))
+        assert_that(show_download.torrents_missing, equal_to([]))

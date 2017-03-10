@@ -15,29 +15,33 @@ def get_airdate(data):
 
 class TheTVDBAPI:
     API_KEY = "87EF0C7BB9CA4283"
-    url = 'https://api.thetvdb.com/'
+    url = 'https://api.thetvdb.com'
 
     def __init__(self, test=False):
         logging.getLogger("requests").setLevel(logging.WARNING)
 
-        self.jwt_token = ''
+        self.jwt_token = None
         if not test:
             self.jwt_token = self.login()
-            if not self.jwt_token:
-                logging.error('Could not login to TheTVDB-API. Invalid API-Key?')
 
         self.headers = {'Accept-Language': 'en', 'Accept': 'application/json',
                         'Authorization': 'Bearer {}'.format(self.jwt_token)}
 
     def login(self):
+        logging.debug('Authenticating against TVDB-API...')
         data = json.dumps({'apikey': self.API_KEY})
-        ret = requests.post(self.url + "login", data=data, headers={'Content-Type': 'application/json'})
+        ret = requests.post(self.url + "/login", data=data, headers={'Content-Type': 'application/json'}, timeout=5)
         if ret.ok:
+            logging.debug('  Authenticated!')
             ret_j = json.loads(ret.text)
             return ret_j.get('token')
+        if 400 < ret.status_code < 499:
+            logging.error('  Authentication failed! Invalid API-Key?')
+        logging.error('  Authentication failed! API down?')
 
     def get_shows_by_search(self, search, year=None):
-        url = self.url + 'search/series?name={}'.format(search)
+        logging.debug('Getting shows matching "{}"...'.format(search))
+        url = self.url + '/search/series?name={}'.format(search)
         response = self._make_request(url)
         responses = self._validate_response_to_json(response)
         if year:
@@ -45,7 +49,8 @@ class TheTVDBAPI:
         return [self._json_to_show(r) for r in responses]
 
     def get_show_by_imdb_id(self, imdb_id):
-        url = self.url + 'search/series?imdbId={}'.format(imdb_id)
+        logging.debug('Getting show by imdb_id "{}"...'.format(imdb_id))
+        url = self.url + '/search/series?imdbId={}'.format(imdb_id)
         response = self._make_request(url)
         responses = self._validate_response_to_json(response)
         return self._json_to_show(responses[0]) if responses else None
@@ -79,8 +84,9 @@ class TheTVDBAPI:
                 return
 
     def get_episode_data(self, tvdb_show, page=1):
+        logging.debug('Getting episodes for show "{}"...'.format(tvdb_show))
         data = []
-        response = self._make_request(self.url + 'series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
+        response = self._make_request(self.url + '/series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
         if response is not None and response.ok:
             ret_j = json.loads(response.text)
             data.extend(ret_j.get('data', []))
@@ -95,9 +101,12 @@ class TheTVDBAPI:
         return data
 
     def get_imdb_id_from_tvdb_id(self, tvdb_id):
-        response = self._make_request(self.url + 'series/{}'.format(tvdb_id))
+        response = self._make_request(self.url + '/series/{}'.format(tvdb_id))
         response_j = self._validate_response_to_json(response)
         return response_j.get('imdbId', 'tt0')
+
+    def __bool__(self):
+        return bool(self.jwt_token)
 
 
 class TVDBShow:
@@ -113,7 +122,7 @@ class TVDBShow:
         self.seasons = {}
         self.episodes = []
         for ep_j in api_.get_episode_data(self):
-            self._add_episode(Episode(ep_j))
+            self._add_episode(Episode(self, ep_j))
 
         if not self.seasons:
             logging.error('Could not get show data of "{}"!'.format(self.name))
@@ -124,7 +133,7 @@ class TVDBShow:
             if episode.season in self.seasons.keys():
                 self.seasons[episode.season].add_episode(episode)
             else:
-                self.seasons[episode.season] = Season(episode)
+                self.seasons[episode.season] = Season(self, episode)
 
     def get_newest_episode(self):
         today = datetime.date.today()
@@ -148,7 +157,8 @@ class TVDBShow:
 class Season:
     FORMAT = "Season {}"
 
-    def __init__(self, init_episode):
+    def __init__(self, show, init_episode):
+        self.show = show
         self.number = init_episode.season
         self.episodes = [init_episode]
 
@@ -172,7 +182,8 @@ class Season:
 
 
 class Episode:
-    def __init__(self, json_data):
+    def __init__(self, show, json_data):
+        self.show = show
         self.season = self._get_int_if_true(json_data, 'airedSeason', 0)
         self.episode = self._get_int_if_true(json_data, 'airedEpisodeNumber', 0)
         self.name = json_data.get('episodeName', '')

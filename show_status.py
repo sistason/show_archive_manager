@@ -7,12 +7,13 @@ class ShowStatus:
         self.show = show
         self.download_directory = download_directory
         self.episodes_behind = None
-        self.episode_holes = None
+        self.episodes_missing = None
         self.download_links = None
 
     def analyse(self):
+        logging.debug('Getting status of show "{}" on disk...'.format(self.show.name))
         self.episodes_behind = self._get_episodes_behind()
-        self.episode_holes = self._get_show_holes()
+        self.episodes_missing = self._get_episodes_missing()
 
     def _get_episodes_behind(self):
         show_directory = os.path.join(self.download_directory, self.show.name)
@@ -34,18 +35,22 @@ class ShowStatus:
         episodes_to_get = self.show.get_episodes_since(current_episode.date)
         # use <= and remove, instead of <, so multiple episodes on the same day do not get skipped
         episodes_to_get.remove(current_episode)
-        print('current: ', current_episode, 'eps to get: ', list(map(str, episodes_to_get)))
+        logging.debug('{} has current_episode {} and needs to get {}'.format(self.show.name, current_episode,
+                                                                             list(map(str, episodes_to_get))))
         return episodes_to_get
 
-    def _get_show_holes(self):
+    def _get_episodes_missing(self):
         missing_episodes = []
         show_directory = os.path.join(self.download_directory, self.show.name)
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(self.show.name))
 
+        logging.debug('{} has missing episodes:'.format(self.show.name))
         for season_nr, season in self.show.seasons.items():
             episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
-            [missing_episodes.append(ep) for ep in season.episodes if ep not in episodes_in_dir]
+            missing_ = [ep for ep in season.get_aired_episodes() if ep not in episodes_in_dir]
+            missing_episodes.extend(missing_)
+            logging.debug('  Season {}: {}'.format(season_nr, list(map(str, missing_))))
 
         return missing_episodes
 
@@ -58,8 +63,13 @@ class ShowStatus:
                 if [e for e in episodes if episode.get_regex().search(e)]]
 
     def __str__(self):
-        return 'Show "{}" is {} episodes behind and there are {} missing episodes'.format(
-            self.show.name, len(self.episodes_behind), len(self.episode_holes))
+        behind_ = 'is {} episodes behind'.format(len(self.episodes_behind)) if self.episodes_behind else ''
+        missing_ = 'has {} missing episodes'.format(len(self.episodes_missing)) if self.episodes_missing else ''
+
+        return 'Show "{}" {}'.format(self.show.name, 'and '.join([i for i in (behind_,missing_) if i]))
+
+    def __len__(self):
+        return len(self.episodes_behind) + len(self.episodes_missing)
 
 
 class Show2Status:
@@ -71,3 +81,6 @@ class Show2Status:
         show_status.analyse()
 
         return show_status
+
+    def __bool__(self):
+        return True
