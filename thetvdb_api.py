@@ -30,19 +30,21 @@ class TheTVDBAPI:
     def login(self):
         logging.debug('Authenticating against TVDB-API...')
         data = json.dumps({'apikey': self.API_KEY})
-        ret = requests.post(self.url + "/login", data=data, headers={'Content-Type': 'application/json'}, timeout=5)
-        if ret.ok:
-            logging.debug('  Authenticated!')
-            ret_j = json.loads(ret.text)
-            return ret_j.get('token')
-        if 400 < ret.status_code < 499:
-            logging.error('  Authentication failed! Invalid API-Key?')
-        logging.error('  Authentication failed! API down?')
+        headers = {'Content-Type': 'application/json'}
+        try:
+            ret = requests.post(self.url + "/login", data=data, headers=headers, timeout=10)
+            if ret.ok:
+                logging.debug('  Authenticated!')
+                ret_j = json.loads(ret.text)
+                return ret_j.get('token')
+            if 400 < ret.status_code < 499:
+                logging.error('  Authentication failed! Invalid API-Key?')
+        except requests.exceptions.ReadTimeout:
+            logging.error('  Authentication failed! API down?')
 
     def get_shows_by_search(self, search, year=None):
         logging.debug('Getting shows matching "{}"...'.format(search))
-        url = self.url + '/search/series?name={}'.format(search)
-        response = self._make_request(url)
+        response = self._make_request('/search/series?name={}'.format(search))
         responses = self._validate_response_to_json(response)
         if year:
             responses = self._filter_search_by_year(responses, year)
@@ -50,8 +52,7 @@ class TheTVDBAPI:
 
     def get_show_by_imdb_id(self, imdb_id):
         logging.debug('Getting show by imdb_id "{}"...'.format(imdb_id))
-        url = self.url + '/search/series?imdbId={}'.format(imdb_id)
-        response = self._make_request(url)
+        response = self._make_request('/search/series?imdbId={}'.format(imdb_id))
         responses = self._validate_response_to_json(response)
         return self._json_to_show(responses[0]) if responses else None
 
@@ -75,7 +76,7 @@ class TheTVDBAPI:
             data = {}
         for _ in range(3):
             try:
-                return requests.get(url, data=data, headers=self.headers, timeout=2)
+                return requests.get(self.url + url, data=data, headers=self.headers, timeout=10)
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 time.sleep(1)
             except Exception as e:
@@ -86,7 +87,7 @@ class TheTVDBAPI:
     def get_episode_data(self, tvdb_show, page=1):
         logging.debug('Getting episodes for show "{}"...'.format(tvdb_show))
         data = []
-        response = self._make_request(self.url + '/series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
+        response = self._make_request('/series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
         if response is not None and response.ok:
             ret_j = json.loads(response.text)
             data.extend(ret_j.get('data', []))
@@ -101,7 +102,7 @@ class TheTVDBAPI:
         return data
 
     def get_imdb_id_from_tvdb_id(self, tvdb_id):
-        response = self._make_request(self.url + '/series/{}'.format(tvdb_id))
+        response = self._make_request('/series/{}'.format(tvdb_id))
         response_j = self._validate_response_to_json(response)
         return response_j.get('imdbId', 'tt0')
 
