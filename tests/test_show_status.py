@@ -25,7 +25,7 @@ class ShowStatusTester(unittest.TestCase):
         self._class.analyse()
 
     def test_episode_holes(self):
-        assert_that(len(self._class.episodes_missing), equal_to(26))
+        assert_that(len(self._class.episodes_missing), equal_to(20))
 
     def test_episode_behind(self):
         assert_that(len(self._class.episodes_behind), equal_to(6))

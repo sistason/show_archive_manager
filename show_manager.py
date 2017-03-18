@@ -1,67 +1,56 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
+from multiprocessing import Pool
 
 from argument_to_show import Argument2Show
 from show_status import Show2Status
-from show_torrenter import QUALITY_REGEX, SITES
+from show_torrenter import QUALITY_REGEX, Status2Torrent
 from torrent_downloader import Torrent2Download, DOWNLOADERS
 
 
 class ShowManager:
-    def __init__(self, download_directory, auth, cleanup_premiumize=True, update_missing=False,
-                 quality=None, torrent_site=SITES.get('default'), downloader=None):
-        self.event_loop = asyncio.get_event_loop()
+    MAX_MAIN_PROCESSES = 16
 
-        torrent_site_ = SITES.get(torrent_site) if torrent_site in SITES else SITES.get('default')
+    def __init__(self, download_directory, auth, cleanup_premiumize=True, update_missing=False,
+                 quality=None, torrent_site='', downloader=None):
+        self.event_loop = asyncio.get_event_loop()
 
         self.arg2show = Argument2Show()
         self.show2status = Show2Status(download_directory)
-        self.status2torrent = torrent_site_(quality, self.event_loop, update_missing=update_missing)
+        self.status2torrent = Status2Torrent(torrent_site, quality, update_missing=update_missing)
         self.torrent2download = Torrent2Download(downloader, auth, download_directory,
                                                  self.event_loop, cleanup=cleanup_premiumize)
+
+    def _check_init(self):
+        return bool(self.arg2show and self.show2status and self.status2torrent and self.torrent2download)
 
     def manage(self, shows):
         if not self._check_init():
             logging.error('Initial setup of all components not possible, aborting...')
             return
-        self.event_loop.run_until_complete(self._workflow(shows))
+
+        process_pool = Pool(self.MAX_MAIN_PROCESSES)
+        process_pool.map(self._workflow, shows)
         self.close()
 
-    def _check_init(self):
-        return bool(self.arg2show and self.show2status and self.status2torrent and self.torrent2download)
-
-    async def _workflow(self, shows):
-        for show in shows:
-            tvdb_show = self._parse_arguments(show)
-            if not tvdb_show:
-                continue
-            show_state = self._get_show_states(tvdb_show)
-            if not show_state:
-                continue
-            show_downloads = await self._get_torrents(show_state)
-            if not show_downloads:
-                continue
-            await self._download_torrents(show_downloads)
+    def _workflow(self, show_argument):
+        tvdb_show = self.arg2show.argument2show(show_argument)
+        logging.debug('Found show "{}" for argument "{}"'.format(tvdb_show, show_argument))
+        if not tvdb_show:
+            return
+        show_state = self.show2status.analyse(tvdb_show)
+        if not show_state:
+            return
+        show_downloads = self.status2torrent.get_torrents(show_state)
+        if not show_downloads:
+            return
+        self.torrent2download.download(show_downloads)
 
     def close(self):
-        self.status2torrent.close()
+        self.status2torrent.torrent_grabber.close()
         self.torrent2download.close()
         self.event_loop.close()
-
-    def _parse_arguments(self, show_argument):
-        show = self.arg2show.argument2show(show_argument)
-        logging.debug('Found show "{}" for argument "{}"'.format(show, show_argument))
-        return show
-
-    def _get_show_states(self, tvdb_show):
-        return self.show2status.analyse(tvdb_show)
-
-    async def _get_torrents(self, show_state):
-        return await self.status2torrent.get_torrents(show_state)
-
-    async def _download_torrents(self, show_downloads):
-        await self.torrent2download.download(show_downloads)
 
 if __name__ == '__main__':
     import argparse
@@ -87,7 +76,7 @@ if __name__ == '__main__':
                            help="Choose the quality of the episodes to download")
     argparser.add_argument('-e', '--encoder', type=str, choices=QUALITY_REGEX.get('encoder').keys(),
                            help="Choose the encoder of the episodes to download")
-    argparser.add_argument('-t', '--torrent_site', type=str, default='piratebay', choices=SITES.keys(),
+    argparser.add_argument('-t', '--torrent_site', type=str, default='piratebay', choices=GRABBER.keys(),
                            help="Choose the encoder of the episodes to download")
     argparser.add_argument('-d', '--downloader', type=str, default='premiumize.me', choices=DOWNLOADERS.keys(),
                            help="Choose the encoder of the episodes to download")

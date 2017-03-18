@@ -4,24 +4,22 @@ import unittest
 import asyncio
 
 from hamcrest import *
-from tests.test_mocks import SHOW_STATUS_MOCK, SHOW_DOWNLOAD_MOCK, STATUS2PIRATEBAY_MOCK, RESULT_MOCK
-from show_torrenter import Result
+from tests.test_mocks import SHOW_STATUS_MOCK, SHOW_DOWNLOAD_MOCK, STATUS2TORRENT_MOCK, PIRATEBAY_RESULTS
+from show_torrenter import PirateBayResult
 
 
 class ShowTorrenterTester(unittest.TestCase):
     def setUp(self):
-        self._class = STATUS2PIRATEBAY_MOCK
+        self._class = STATUS2TORRENT_MOCK
 
-    @unittest.SkipTest
     def test_get_torrent(self):
-        # Asyncronous Mocks are not yet a thing :(
-        future = asyncio.ensure_future(self._class.get_torrents(SHOW_STATUS_MOCK))
-        self._class.event_loop.run_until_complete(future)
-        show_download = future.result()
+        show_download = self._class.get_torrents(SHOW_STATUS_MOCK)
+        assert_that(len(show_download.torrents_behind), equal_to(1))
         assert_that(show_download.torrents_behind[0].links, equal_to(SHOW_DOWNLOAD_MOCK.torrents_behind[0].links))
-        assert_that(show_download.torrents_missing, equal_to([]))
+        self._class.torrent_grabber.event_loop.close()
 
-    @staticmethod
-    def test_compare():
-        unsorted = [Result(), RESULT_MOCK]
-        assert_that(sorted(unsorted), is_not(unsorted))
+    def test_init(self):
+        assert_that(self._class.torrent_grabber, is_not(None))
+
+    def tearDown(self):
+        self._class.close()
