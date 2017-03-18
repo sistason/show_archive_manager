@@ -24,6 +24,7 @@ TheTVDBAPI_MOCK.get_episode_data = MagicMock(return_value=EPISODE_DATA_MOCK)
 TheTVDBAPI_MOCK.get_imdb_id_from_tvdb_id = MagicMock(return_value='tt4016454')
 
 TVDB_SHOW_MOCK = TVDBShow(SHOW_DATA_JSON_MOCK, TheTVDBAPI_MOCK)
+TVDB_SHOW_MOCK.fill_data()
 SINGLE_EPISODE_MOCK = Episode(TVDB_SHOW_MOCK, SINGLE_EPISODE_DATA_MOCK)
 
 SHOW_STATUS_MOCK = ShowStatus(TVDB_SHOW_MOCK, '/tmp')

@@ -57,7 +57,9 @@ class TheTVDBAPI:
         return self._json_to_show(responses[0]) if responses else None
 
     def _json_to_show(self, response):
-        return TVDBShow(response, self) if response else None
+        show = TVDBShow(response, self) if response else None
+        show.fill_data()
+        return show
 
     @staticmethod
     def _filter_search_by_year(responses, year):
