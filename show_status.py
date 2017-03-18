@@ -48,7 +48,8 @@ class ShowStatus:
         logging.debug('{} has missing episodes:'.format(self.show.name))
         for season_nr, season in self.show.seasons.items():
             episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
-            missing_ = [ep for ep in season.get_aired_episodes() if ep not in episodes_in_dir]
+            missing_ = [ep for ep in season.get_aired_episodes()
+                        if ep not in episodes_in_dir and ep not in self.episodes_behind]
             missing_episodes.extend(missing_)
             logging.debug('  Season {}: {}'.format(season_nr, list(map(str, missing_))))
 
@@ -66,7 +67,7 @@ class ShowStatus:
         behind_ = 'is {} episodes behind'.format(len(self.episodes_behind)) if self.episodes_behind else ''
         missing_ = 'has {} missing episodes'.format(len(self.episodes_missing)) if self.episodes_missing else ''
 
-        return 'Show "{}" {}'.format(self.show.name, 'and '.join([i for i in (behind_,missing_) if i]))
+        return 'Show "{}" {}'.format(self.show.name, 'and '.join([i for i in (behind_, missing_) if i]))
 
     def __len__(self):
         return len(self.episodes_behind) + len(self.episodes_missing)

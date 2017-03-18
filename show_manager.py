@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
-import os
 
 from argument_to_show import Argument2Show
 from show_status import Show2Status
@@ -84,9 +83,9 @@ if __name__ == '__main__':
                            help="Delete files from My Files after successful download")
     argparser.add_argument('-u', '--update_missing', action="store_true",
                            help="update shows, check if there are missing episode and download them")
-    argparser.add_argument('-q', '--quality', type=str, default='720p', choices=QUALITY_REGEX.get('quality').keys(),
+    argparser.add_argument('-q', '--quality', type=str, choices=QUALITY_REGEX.get('quality').keys(),
                            help="Choose the quality of the episodes to download")
-    argparser.add_argument('-e', '--encoder', type=str, default='x264', choices=QUALITY_REGEX.get('encoder').keys(),
+    argparser.add_argument('-e', '--encoder', type=str, choices=QUALITY_REGEX.get('encoder').keys(),
                            help="Choose the encoder of the episodes to download")
     argparser.add_argument('-t', '--torrent_site', type=str, default='piratebay', choices=SITES.keys(),
                            help="Choose the encoder of the episodes to download")

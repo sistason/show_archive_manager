@@ -39,7 +39,7 @@ class TheTVDBAPI:
                 return ret_j.get('token')
             if 400 < ret.status_code < 499:
                 logging.error('  Authentication failed! Invalid API-Key?')
-        except requests.exceptions.ReadTimeout:
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
             logging.error('  Authentication failed! API down?')
 
     def get_shows_by_search(self, search, year=None):
@@ -85,7 +85,7 @@ class TheTVDBAPI:
                 return
 
     def get_episode_data(self, tvdb_show, page=1):
-        logging.debug('Getting episodes for show "{}"...'.format(tvdb_show))
+        logging.debug('Getting episode_data for show "{}"...'.format(tvdb_show))
         data = []
         response = self._make_request('/series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
         if response is not None and response.ok:
@@ -111,18 +111,22 @@ class TheTVDBAPI:
 
 
 class TVDBShow:
-    def __init__(self, json_result, api_):
+    def __init__(self, json_result, api):
         self.raw = json_result
-        self.api = api_
+        self.api = api
 
         self.aired = get_airdate(json_result)
         self.name = json_result.get('seriesName', '')
         self.tvdb_id = json_result.get('id', 0)
-        self.imdb_id = api_.get_imdb_id_from_tvdb_id(self.tvdb_id)
+        self.imdb_id = ''
 
         self.seasons = {}
         self.episodes = []
-        for ep_j in api_.get_episode_data(self):
+
+    def fill_data(self):
+        self.imdb_id = self.api.get_imdb_id_from_tvdb_id(self.tvdb_id)
+
+        for ep_j in self.api.get_episode_data(self):
             self._add_episode(Episode(self, ep_j))
 
         if not self.seasons:
@@ -146,7 +150,7 @@ class TVDBShow:
         return [ep for ep in self.episodes if date <= ep.date <= today]
 
     def __str__(self):
-        return '{} [{}]'.format(self.name, self.imdb_id)
+        return '{} [{}]'.format(self.name, self.imdb_id) if self.imdb_id else self.name
 
     def str_verbose(self):
         return "{}\n{}".format(str(self), '\t\n'.join(map(lambda f: f.str_verbose(), self.seasons.values())))
@@ -219,6 +223,6 @@ class Episode:
 
 if __name__ == '__main__':
     import sys
-    api = TheTVDBAPI()
-    show = api.get_show_by_imdb_id(sys.argv[1])
-    print(show.get_newest_episode())
+    api_ = TheTVDBAPI()
+    show_ = api_.get_show_by_imdb_id(sys.argv[1])
+    print(show_.get_newest_episode())

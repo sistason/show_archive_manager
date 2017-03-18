@@ -72,7 +72,7 @@ class TVDBShowTester(unittest.TestCase):
         assert_that(self._class.get_episodes_since(datetime.date(year=2000, month=1, day=1)), equal_to([new_episode]))
 
     def test_builtin(self):
-        assert_that(str(self._class), equal_to('Supergirl [tt4016454]'))
+        assert_that(str(self._class), equal_to('Supergirl'))
         assert_that(bool(self._class), equal_to(True))
 
 

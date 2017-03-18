@@ -35,6 +35,33 @@ class Torrent:
         self.links = links
 
 
+class Result:
+    def __init__(self):
+        self.title = ''
+        self.magnet = ''
+        self.seeders = 0
+        self.leechers = 0
+
+    def __bool__(self):
+        return bool(self.title)
+
+    def __cmp__(self, other):
+        return self if self.seeders > other.seeders else other
+
+
+class PirateBayResult(Result):
+    def __init__(self, beautiful_soup_tag):
+        super().__init__()
+        try:
+            tds = beautiful_soup_tag.find_all('td')
+            self.title = tds[1].a.text
+            self.magnet = tds[1].find_all('a')[1].attrs.get('href')
+            self.seeders = int(tds[-2].text)
+            self.leechers = int(tds[-1].text)
+        except (IndexError, ValueError, AttributeError):
+            return
+
+
 class Status2Torrent:
     def __init__(self, quality, event_loop, update_missing=False):
         self.update_missing = update_missing
@@ -68,30 +95,25 @@ class Status2Torrent:
     async def get_episode(self, name, episode):
         logging.debug('{}: Searching for torrents...'.format(episode))
 
-        found_links = await self._search(name, episode)
-        print(found_links)
-        logging.debug('{}: Found {} torrents'.format(episode, len(found_links)))
+        results = await self._search(name, episode)
+        logging.debug('{}: Found {} torrents'.format(episode, len(results)))
 
-        urls = [self._to_url(t) for t in self._filter_searches(found_links, episode)]
+        urls = [t.magnet for t in self._filter_searches(results, episode)]
         if urls:
-            logging.debug('{}: Found links "{}"'.format(episode, urls))
             return Torrent(episode, urls)
 
     async def _search(self, name, episode):
         return []
 
-    def _to_url(self, match):
-        return NotImplementedError
-
-    def _filter_searches(self, links_, episode):
+    def _filter_searches(self, results, episode):
         """ Return the first matching link (the earlier, the better matching) """
-        return [link for link in links_ if self._torrent_matches(link.text, episode)]
+        return sorted([result for result in results if self._torrent_matches(result, episode)])
 
-    def _torrent_matches(self, title, episode):
-        for filter_ in [episode.get_regex(),
-                        QUALITY_REGEX['encoder'].get(self.quality.get('encoder')),
-                        QUALITY_REGEX['quality'].get(self.quality.get('quality'))]:
-            if not filter_ or not filter_.search(title):
+    def _torrent_matches(self, result, episode):
+        for filter_re in [episode.get_regex(),
+                          QUALITY_REGEX['encoder'].get(self.quality.get('encoder')),
+                          QUALITY_REGEX['quality'].get(self.quality.get('quality'))]:
+            if filter_re and not filter_re.search(result.title):
                 return False
         return True
 
@@ -137,14 +159,13 @@ class Status2Piratebay(Status2Torrent):
 
     @staticmethod
     def _parse_piratebay_response(text):
-        bs4_ = bs4.BeautifulSoup(text, "html5lib")
-        return bs4_.find_all('a', attrs={'class': 'detLink'})
+        print(len(text))
+        bs4_response = bs4.BeautifulSoup(text, "html5lib")
+        main_table = bs4_response.find('table', attrs={'id': 'searchResult'})
+        print(len(main_table))
+        print(len(main_table.find_all('tr')[1:]))
+        return [PirateBayResult(tag) for tag in main_table.find_all('tr')[1:]]
 
-    def _to_url(self, match):
-        try:
-            return self.url + match.attrs.get('href')
-        except (AttributeError, TypeError):
-            return None
 
 SITES = {'piratebay': Status2Piratebay, 'default': Status2Piratebay}
 
@@ -152,6 +173,8 @@ if __name__ == '__main__':
     event_loop_ = asyncio.get_event_loop()
     s2t = Status2Piratebay({'quality': '720p', 'encoder': 'x264'}, event_loop_)
     from thetvdb_api import Episode
+    logging.basicConfig(format='%(message)s',
+                        level=logging.DEBUG)
     link_ = event_loop_.create_task(s2t.get_episode('supergirl',
                                                     Episode(None, {'airedSeason': 2, 'airedEpisodeNumber': 13})))
     event_loop_.run_until_complete(link_)

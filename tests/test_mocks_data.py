@@ -13,6 +13,25 @@ SHOWS_DATA_MOCK = """{
   ]
 }"""
 
+PIRATEBAY_RESULT_DATA_MOCK = """
+<tr>
+		<td class="vertTh">
+			<center>
+				<a href="/browse/200" title="More from this category">Video</a><br />
+				(<a href="/browse/205" title="More from this category">TV shows</a>)
+			</center>
+		</td>
+		<td>
+<div class="detName">			<a href="/torrent/17161040/Supergirl.S02E13.HDTV.x264-LOL[ettv]" class="detLink" title="Details for Supergirl.S02E13.HDTV.x264-LOL[ettv]">Supergirl.S02E13.HDTV.x264-LOL[ettv]</a>
+</div>
+<a href="magnet:?xt=urn:btih:430ae2f38babd312fa535ef7f02c728318fe1782&dn=Supergirl.S02E13.HDTV.x264-LOL%5Bettv%5D&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Fzer0day.ch%3A1337&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969" title="Download this torrent using magnet"><img src="//thepiratebay.org/static/img/icon-magnet.gif" alt="Magnet link" /></a><a href="//cdn.bitx.tv/bx.php?torrent=bWFnbmV0Oj94dD11cm46YnRpaDo0MzBhZTJmMzhiYWJkMzEyZmE1MzVlZjdmMDJjNzI4MzE4ZmUxNzgyJmRuPVN1cGVyZ2lybC5TMDJFMTMuSERUVi54MjY0LUxPTCU1QmV0dHYlNUQmdHI9dWRwJTNBJTJGJTJGdHJhY2tlci5sZWVjaGVycy1wYXJhZGlzZS5vcmclM0E2OTY5JnRyPXVkcCUzQSUyRiUyRnplcjBkYXkuY2glM0ExMzM3JnRyPXVkcCUzQSUyRiUyRnRyYWNrZXIuY29wcGVyc3VyZmVyLnRrJTNBNjk2OSZ0cj11ZHAlM0ElMkYlMkZwdWJsaWMucG9wY29ybi10cmFja2VyLm9yZyUzQTY5Njk=&affid=1337&imdb=" target="_blank" title="Play now using BitX"><img src="//thepiratebay.org/static/img/icons/icon-bitx.png" alt="Play link" /></a><img src="//thepiratebay.org/static/img/icon_comment.gif" alt="This torrent has 1 comments." title="This torrent has 1 comments." /><a href="/user/ettv"><img src="//thepiratebay.org/static/img/vip.gif" alt="VIP" title="VIP" style="width:11px;" border='0' /></a>
+			<font class="detDesc">Uploaded 02-21&nbsp;03:03, Size 280.6&nbsp;MiB, ULed by <a class="detDesc" href="/user/ettv/" title="Browse ettv">ettv</a></font>
+		</td>
+		<td align="right">1493</td>
+		<td align="right">120</td>
+	</tr>
+"""
+
 EPISODE_DATA_MOCK = [
     {
       "absoluteNumber": 1,

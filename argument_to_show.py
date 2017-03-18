@@ -14,6 +14,12 @@ class Argument2Show:
 
     def argument2show(self, argument_show):
         logging.debug('Converting argument "{}" to show...'.format(argument_show))
+        show = self._get_show(argument_show)
+        if show is not None:
+            show.fill_data()
+            return show
+
+    def _get_show(self, argument_show):
         if argument_show.startswith('tt'):
             return self.tvdb_api.get_show_by_imdb_id(argument_show)
 
