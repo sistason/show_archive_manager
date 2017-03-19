@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+import os
 import asyncio
 import logging
-from multiprocessing import Pool
+from multiprocessing import Process
 
 from argument_to_show import Argument2Show
 from show_status import Show2Status
-from show_torrenter import QUALITY_REGEX, Status2Torrent
+from show_torrenter import QUALITY_REGEX, Status2Torrent, GRABBER
 from torrent_downloader import Torrent2Download, DOWNLOADERS
 
 
@@ -14,6 +15,7 @@ class ShowManager:
 
     def __init__(self, download_directory, auth, cleanup_premiumize=True, update_missing=False,
                  quality=None, torrent_site='', downloader=None):
+        self.download_directory = download_directory
         self.event_loop = asyncio.get_event_loop()
 
         self.arg2show = Argument2Show()
@@ -25,13 +27,21 @@ class ShowManager:
     def _check_init(self):
         return bool(self.arg2show and self.show2status and self.status2torrent and self.torrent2download)
 
-    def manage(self, shows):
+    def manage(self, show_arguments):
         if not self._check_init():
             logging.error('Initial setup of all components not possible, aborting...')
             return
 
-        process_pool = Pool(self.MAX_MAIN_PROCESSES)
-        process_pool.map(self._workflow, shows)
+        if not show_arguments:
+            show_arguments = self.get_shows_from_directory()
+
+        process_list = []
+        for show in show_arguments:
+            proc_ = Process(target=self._workflow, args=(show,))
+            proc_.start()
+            process_list.append(proc_)
+
+        [proc_.join() for proc_ in process_list]
         self.close()
 
     def _workflow(self, show_argument):
@@ -52,6 +62,10 @@ class ShowManager:
         self.torrent2download.close()
         self.event_loop.close()
 
+    def get_shows_from_directory(self):
+        return [listing for listing in os.listdir(self.download_directory) if path.isdir(listing)]
+
+
 if __name__ == '__main__':
     import argparse
     from os import path, access, W_OK, R_OK
@@ -62,7 +76,7 @@ if __name__ == '__main__':
         raise argparse.ArgumentTypeError('{} is no directory or isn\'t writeable'.format(string))
 
     argparser = argparse.ArgumentParser(description="Manage your regular shows.")
-    argparser.add_argument('shows', nargs='+', type=str,  # TODO: nargs="*", look at dl_dir which shows to manage
+    argparser.add_argument('shows', nargs='*', type=str,
                            help='Manage these shows.')
     argparser.add_argument('download_directory', type=argcheck_dir, default='.',
                            help='Set the directory to sort the file(s) into.')

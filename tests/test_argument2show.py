@@ -2,8 +2,8 @@
 
 import unittest
 
-from hamcrest import *
 from argument_to_show import Argument2Show
+from hamcrest import *
 
 
 class Argument2ShowTester(unittest.TestCase):
@@ -38,7 +38,6 @@ class Argument2ShowTester(unittest.TestCase):
         assert_that(result, not_none())
         assert_that(result.name, equal_to('Supernatural'))
         assert_that(result.imdb_id, equal_to('tt0460681'))
-
 
 
 if __name__ == "__main__":

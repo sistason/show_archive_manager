@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
+import datetime
 import unittest
 from unittest.mock import MagicMock
-import datetime
 
 from hamcrest import *
-from thetvdb_api import TheTVDBAPI, TVDBShow, Season, Episode
 from tests.test_mocks import SINGLE_EPISODE_MOCK, TheTVDBAPI_MOCK, SINGLE_TVDBSHOW_MOCK, \
     SINGLE_EPISODE_DATA_MOCK, TVDB_SHOW_MOCK
+from thetvdb_api import TheTVDBAPI, TVDBShow, Season, Episode
 
 
 class TheTVDBAPITester(unittest.TestCase):

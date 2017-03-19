@@ -1,9 +1,9 @@
-import re
 import asyncio
-import aiohttp
 import logging
-import bs4
+import re
 
+import aiohttp
+import bs4
 
 QUALITY_REGEX = {
     'quality': {
@@ -45,7 +45,7 @@ class PirateBayResult:
             self.magnet = tds[1].find_all('a')[1].attrs.get('href')
             self.seeders = int(tds[-2].text)
             self.leechers = int(tds[-1].text)
-        except (IndexError, ValueError, AttributeError) as e:
+        except (IndexError, ValueError, AttributeError):
             return
 
     def __bool__(self):
@@ -68,22 +68,21 @@ class Status2Torrent:
         logging.debug('Getting torrents for {} ({} eps)...'.format(status.show.name, len(status)))
         show_download = ShowDownload(status)
 
-        episodes_behind_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(status.show.name, behind))
-                                 for behind in status.episodes_behind]
-        episodes_missing_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(status.show.name, missing))
-                                  for missing in status.episodes_missing if self.update_missing]
-
-        self.event_loop.run_until_complete(*episodes_behind_tasks, *episodes_missing_tasks)
-
-        show_download.torrents_behind = [task.result() for task in episodes_behind_tasks]
-        show_download.torrents_missing = [task.result() for task in episodes_missing_tasks]
-
+        show_download.torrents_behind = self._get_specific_torrents(status.episodes_behind, status)
         logging.debug('Found {} links to get "{}" up-to-date'.format(len(show_download.torrents_behind),
                                                                      status.show.name))
         if self.update_missing:
+            show_download.torrents_missing = self._get_specific_torrents(status.episodes_missing, status)
             logging.debug('Found {} links to get "{}" complete'.format(len(show_download.torrents_missing),
                                                                        status.show.name))
+
         return show_download
+
+    def _get_specific_torrents(self, episodes, status):
+        episode_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(status.show.name, behind))
+                                 for behind in episodes]
+        self.event_loop.run_until_complete(asyncio.gather(*episode_tasks))
+        return [task.result() for task in episode_tasks]
 
     async def get_torrent_for_episode(self, name, episode):
         logging.debug('{}: Searching for torrents...'.format(episode))
@@ -175,7 +174,8 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(message)s',
                         level=logging.DEBUG)
     link_ = event_loop_.create_task(s2t.get_torrent_for_episode('supergirl',
-                                                                Episode(None, {'airedSeason': 2, 'airedEpisodeNumber': 13})))
+                                                                Episode(None,
+                                                                        {'airedSeason': 2, 'airedEpisodeNumber': 13})))
     event_loop_.run_until_complete(link_)
     event_loop_.close()
     s2t.torrent_grabber.close()

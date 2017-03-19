@@ -1,8 +1,6 @@
-
-import re
 import logging
+import re
 
-# from fuzzywuzzy import fuzz
 from thetvdb_api import TheTVDBAPI
 
 

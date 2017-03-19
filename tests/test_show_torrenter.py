@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
 import unittest
-import asyncio
 
 from hamcrest import *
-from tests.test_mocks import SHOW_STATUS_MOCK, SHOW_DOWNLOAD_MOCK, STATUS2TORRENT_MOCK, PIRATEBAY_RESULTS
-from show_torrenter import PirateBayResult
+from tests.test_mocks import SHOW_STATUS_MOCK, SHOW_DOWNLOAD_MOCK, STATUS2TORRENT_MOCK
 
 
 class ShowTorrenterTester(unittest.TestCase):

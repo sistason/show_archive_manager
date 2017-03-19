@@ -1,8 +1,8 @@
-import os
-import time
 import asyncio
 import logging
-from multiprocessing import Pool, Process
+import os
+import time
+from multiprocessing import Process
 
 from premiumize_me_dl.premiumize_me_api import PremiumizeMeAPI
 
@@ -48,11 +48,15 @@ class Torrent2Download:
             self.transfers = future.result()
             time.sleep(self.CHECK_EVERY)
 
-    async def download(self, show_download):
+    def download(self, show_download):
         logging.info('Downloading {}...'.format(show_download.status.show.name))
 
-        downloads = await self._start_torrenting(show_download)
-        await asyncio.gather(*[self.wait_and_download(download) for download in downloads])
+        future = asyncio.ensure_future(self._start_torrenting(show_download))
+        self.event_loop.run_until_complete(future)
+        downloads = future.result()
+
+        self.event_loop.run_until_complete(asyncio.gather(
+            *[self.wait_and_download(download) for download in downloads]))
 
     async def wait_and_download(self, download):
         transfer = await self._wait_torrenting(download.upload)
@@ -97,7 +101,6 @@ class Torrent2Download:
 
     def _get_torrent_transfer(self, upload):
         for transfer in self.transfers:
-            print(upload.id, transfer.id, transfer)
             if transfer.id == upload.id:
                 return transfer
 

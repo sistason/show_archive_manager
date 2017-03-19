@@ -1,16 +1,10 @@
-
 import json
-import asyncio
 from unittest.mock import MagicMock
-from tests.test_mocks_data import EPISODE_DATA_MOCK, SHOWS_DATA_MOCK, PIRATEBAY_RESPONSE_SHORTENED, \
-    PIRATEBAY_RESULT_DATA_MOCK
 
-import bs4
-
-from thetvdb_api import TheTVDBAPI, TVDBShow, Episode
 from show_status import ShowStatus
-from show_torrenter import ShowDownload, Status2Torrent, Torrent, PirateBayResult, PirateBayParser
-
+from show_torrenter import ShowDownload, Status2Torrent, Torrent, PirateBayParser
+from tests.test_mocks_data import EPISODE_DATA_MOCK, SHOWS_DATA_MOCK, PIRATEBAY_RESPONSE_SHORTENED
+from thetvdb_api import TheTVDBAPI, TVDBShow, Episode
 
 SHOWS_DATA_MOCK = SHOWS_DATA_MOCK.replace('\n', '')
 SHOW_DATA_JSON_MOCK = json.loads(SHOWS_DATA_MOCK).get('data')[0]

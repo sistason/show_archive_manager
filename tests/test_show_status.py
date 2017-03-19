@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-import unittest
 import os
 import shutil
 import tempfile
+import unittest
 
 from hamcrest import *
-from tests.test_mocks import SHOW_DATA_JSON_MOCK, TVDB_SHOW_MOCK
 from show_status import ShowStatus
+from tests.test_mocks import SHOW_DATA_JSON_MOCK, TVDB_SHOW_MOCK
 
 
 class ShowStatusTester(unittest.TestCase):
