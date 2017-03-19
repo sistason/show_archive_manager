@@ -1,6 +1,8 @@
 import os
+import time
 import asyncio
 import logging
+from multiprocessing import Pool, Process
 
 from premiumize_me_dl.premiumize_me_api import PremiumizeMeAPI
 
@@ -12,7 +14,6 @@ class Download:
         self.show = show
         self.episode = episode
         self.upload = upload
-        self.transfer = None
 
 
 class Torrent2Download:
@@ -32,25 +33,22 @@ class Torrent2Download:
         downloader_class = DOWNLOADERS.get(downloader) if downloader in DOWNLOADERS else DOWNLOADERS.get('default')
         self.torrent2download = downloader_class(login, self.event_loop)
 
+        self.process_update_transfers = Process(target=self._update_transfers)
+        self.process_update_transfers.start()
+
     def close(self):
         self.shutdown = True
+        self.process_update_transfers.join(2)
         self.torrent2download.close()
-        import time
-        time.sleep(2)
+
+    def _update_transfers(self):
+        while not self.shutdown:
+            future = asyncio.ensure_future(self.torrent2download.get_transfers())
+            self.event_loop.run_until_complete(future)
+            self.transfers = future.result()
+            time.sleep(self.CHECK_EVERY)
 
     async def download(self, show_download):
-        asyncio.ensure_future(self._update_transfers())
-        await self._download_show(show_download)
-        await asyncio.sleep(2)
-
-    async def _update_transfers(self):
-        if self.shutdown:
-            return
-        self.transfers = await self.torrent2download.get_transfers()
-        await asyncio.sleep(self.CHECK_EVERY)
-        await self._update_transfers()
-
-    async def _download_show(self, show_download):
         logging.info('Downloading {}...'.format(show_download.status.show.name))
 
         downloads = await self._start_torrenting(show_download)
