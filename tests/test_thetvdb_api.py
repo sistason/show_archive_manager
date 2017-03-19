@@ -4,10 +4,10 @@ import datetime
 import unittest
 from unittest.mock import MagicMock
 
+from argument_to_show.thetvdb_api import TheTVDBAPI, TVDBShow, Season, Episode
 from hamcrest import *
 from tests.test_mocks import SINGLE_EPISODE_MOCK, TheTVDBAPI_MOCK, SINGLE_TVDBSHOW_MOCK, \
     SINGLE_EPISODE_DATA_MOCK, TVDB_SHOW_MOCK
-from thetvdb_api import TheTVDBAPI, TVDBShow, Season, Episode
 
 
 class TheTVDBAPITester(unittest.TestCase):

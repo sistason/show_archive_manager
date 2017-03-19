@@ -4,10 +4,10 @@ import asyncio
 import logging
 from multiprocessing import Process
 
-from argument_to_show import Argument2Show
-from show_status import Show2Status
-from show_torrenter import QUALITY_REGEX, Status2Torrent, GRABBER
-from torrent_downloader import Torrent2Download, DOWNLOADERS
+from a_argument_to_show.argument_to_show import Argument2Show
+from b_show_to_status.show2status import Show2Status
+from c_status_to_torrent.status2torrent import QUALITY_REGEX, Status2Torrent, GRABBER
+from d_torrent_to_download.torrent2download import Torrent2Download, DOWNLOADERS
 
 
 class ShowManager:

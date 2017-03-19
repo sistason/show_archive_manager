@@ -1,7 +1,7 @@
 import logging
 import re
 
-from thetvdb_api import TheTVDBAPI
+from a_argument_to_show.thetvdb_api import TheTVDBAPI
 
 
 class Argument2Show:

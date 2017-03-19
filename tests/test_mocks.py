@@ -1,10 +1,10 @@
 import json
 from unittest.mock import MagicMock
 
-from show_status import ShowStatus
-from show_torrenter import ShowDownload, Status2Torrent, Torrent, PirateBayParser
+from argument_to_show.thetvdb_api import TheTVDBAPI, TVDBShow, Episode
+from show_to_status import ShowStatus
+from status_to_torrent import ShowDownload, Status2Torrent, Torrent, PirateBayParser
 from tests.test_mocks_data import EPISODE_DATA_MOCK, SHOWS_DATA_MOCK, PIRATEBAY_RESPONSE_SHORTENED
-from thetvdb_api import TheTVDBAPI, TVDBShow, Episode
 
 SHOWS_DATA_MOCK = SHOWS_DATA_MOCK.replace('\n', '')
 SHOW_DATA_JSON_MOCK = json.loads(SHOWS_DATA_MOCK).get('data')[0]

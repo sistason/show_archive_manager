@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from hamcrest import *
-from show_status import ShowStatus
+from show_to_status import ShowStatus
 from tests.test_mocks import SHOW_DATA_JSON_MOCK, TVDB_SHOW_MOCK
 
 

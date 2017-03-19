@@ -7,13 +7,6 @@ import time
 import requests
 
 
-def get_airdate(data):
-    try:
-        return datetime.datetime.strptime(data.get('firstAired'), '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return datetime.datetime.fromtimestamp(0).date()
-
-
 class TheTVDBAPI:
     API_KEY = "87EF0C7BB9CA4283"
     url = 'https://api.thetvdb.com'
@@ -62,9 +55,8 @@ class TheTVDBAPI:
         show.fill_data()
         return show
 
-    @staticmethod
-    def _filter_search_by_year(responses, year):
-        return [r for r in responses if str(get_airdate(r).year) == str(year)]
+    def _filter_search_by_year(self, responses, year):
+        return [r for r in responses if str(self.get_airdate(r).year) == str(year)]
 
     @staticmethod
     def _validate_response_to_json(response):
@@ -109,6 +101,13 @@ class TheTVDBAPI:
         response_j = self._validate_response_to_json(response)
         return response_j.get('imdbId', 'tt0')
 
+    @staticmethod
+    def get_airdate(data):
+        try:
+            return datetime.datetime.strptime(data.get('firstAired'), '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return datetime.datetime.fromtimestamp(0).date()
+
     def __bool__(self):
         return bool(self.jwt_token)
 
@@ -118,7 +117,7 @@ class TVDBShow:
         self.raw = json_result
         self.api = api
 
-        self.aired = get_airdate(json_result)
+        self.aired = self.api.get_airdate(json_result)
         self.name = json_result.get('seriesName', '')
         self.tvdb_id = json_result.get('id', 0)
         self.imdb_id = ''
@@ -197,7 +196,7 @@ class Episode:
         self.season = self._get_int_if_true(json_data, 'airedSeason', 0)
         self.episode = self._get_int_if_true(json_data, 'airedEpisodeNumber', 0)
         self.name = json_data.get('episodeName', '')
-        self.date = get_airdate(json_data)
+        self.date = self.show.api.get_airdate(json_data)
         self.absolute_episode_number = self._get_int_if_true(json_data, 'absoluteNumber', 0)
 
     @staticmethod
