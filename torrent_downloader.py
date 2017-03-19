@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import time
-from multiprocessing import Process
+from multiprocessing import Process, Queue, Value
 
 from premiumize_me_dl.premiumize_me_api import PremiumizeMeAPI
 
@@ -10,29 +10,35 @@ DOWNLOADERS = {'premiumize.me': PremiumizeMeAPI, 'default': PremiumizeMeAPI}
 
 
 class Download:
-    def __init__(self, show, episode, upload):
+    def __init__(self, show, episode, upload, downloader, download_dir):
         self.show = show
         self.episode = episode
+        self.downloader = downloader
+        self.download_directory = download_dir
+
         self.upload = upload
+        self.transfer = None
 
 
 class Torrent2Download:
     CHECK_EVERY = 5
+    MAX_WORKER_THREADS = 5
 
-    def __init__(self, downloader, login, download_directory, event_loop, cleanup=True):
+    def __init__(self, downloader, login, download_directory, event_loop):
         super().__init__()
 
         self.download_directory = download_directory
-        self.cleanup = cleanup
 
-        self.shutdown = False
         self.event_loop = event_loop
-        self.transfers = []
-        self.upload_ids = []
+
+        self.shutdown = Value('b')
+        self.downloads = Queue()
 
         downloader_class = DOWNLOADERS.get(downloader) if downloader in DOWNLOADERS else DOWNLOADERS.get('default')
         self.torrent2download = downloader_class(login, self.event_loop)
 
+        self.upload_ids = []
+        self.transfers = []
         self.process_update_transfers = Process(target=self._update_transfers)
         self.process_update_transfers.start()
 
@@ -51,22 +57,20 @@ class Torrent2Download:
     def download(self, show_download):
         logging.info('Downloading {}...'.format(show_download.status.show.name))
 
-        future = asyncio.ensure_future(self._start_torrenting(show_download))
-        self.event_loop.run_until_complete(future)
-        downloads = future.result()
+        self.event_loop.run_until_complete(self._start_torrenting(show_download))
 
-        self.event_loop.run_until_complete(asyncio.gather(
-            *[self.wait_and_download(download) for download in downloads]))
+        worker_processes = []
+        for _ in range(self.MAX_WORKER_THREADS):
+            proc_ = TorrentDownloadWorker(self.downloads, self.shutdown, self.transfers, self.event_loop)
+            proc_.start()
+            worker_processes.append(proc_)
 
-    async def wait_and_download(self, download):
-        transfer = await self._wait_torrenting(download.upload)
-        if transfer is not None and await self._download(download, transfer):
-            await self._cleanup(download.upload)
+        [proc_.join() for proc_ in worker_processes]
+        self.close()
 
     async def _start_torrenting(self, show_download):
         logging.info('Start torrenting {}...'.format(show_download.status.show.name))
 
-        downloads = []
         for torrent in show_download.torrents_behind+show_download.torrents_missing:
             if torrent is None:
                 continue
@@ -75,49 +79,66 @@ class Torrent2Download:
                 if upload_:
                     if upload_.id not in self.upload_ids:
                         self.upload_ids.append(upload_.id)
-                        downloads.append(Download(show_download.status.show, torrent.episode, upload_))
+                        download = Download(show_download.status.show, torrent.episode, upload_,
+                                            self.torrent2download, self.download_directory)
+                        self.downloads.put(download)
                         break
                     logging.warning('Torrent "{}" for episode "{}" was a duplicate, '
                                     'possibly bad downloads, check the downloads!'.format(link, torrent.episode))
-        return downloads
 
-    async def _wait_torrenting(self, upload):
-        logging.info('Wait while torrenting {}...'.format(upload.name))
-        transfer = None
-        while True:
-            if transfer is None:
-                transfer = self._get_torrent_transfer(upload)
-                if not transfer:
-                    logging.error('Error torrenting {}, torrent not found anymore!'.format(upload.name))
-                    return None
+    def __bool__(self):
+        return bool(self.torrent2download)
 
-            if not transfer.is_running():
-                if transfer.status == 'error':
-                    logging.error('Error torrenting {}!'.format(transfer.name))
-                logging.info('Finished torrenting {}'.format(transfer.name))
-                return transfer
 
-            await asyncio.sleep(self.CHECK_EVERY/2)
+class TorrentDownloadWorker(Process):
+    def __init__(self, downloads, shutdown, transfers, event_loop):
+        super().__init__()
+        self.downloads_queue = downloads
+        self.shutdown = shutdown
+        self.transfers = transfers
+        self.event_loop = event_loop
+
+    def run(self):
+        while not self.shutdown or self.downloads_queue.empty():
+            download = self.downloads_queue.get()
+            if self._is_transfer_ready_to_download(download):
+                self._download(download)
+                self._cleanup(download)
+
+    def _is_transfer_ready_to_download(self, download):
+        download.transfer = self._get_torrent_transfer(download.upload)
+        if download.transfer is None:
+            logging.error('Error torrenting {}, torrent not found anymore!'.format(download.name))
+            return False
+
+        if download.transfer.is_running():
+            self.downloads_queue.put(download)
+            return False
+
+        if download.transfer.status == 'error':
+            logging.error('Error torrenting {}: {}'.format(download.transfer.name, download.transfer.message))
+            return False
+
+        return True
 
     def _get_torrent_transfer(self, upload):
         for transfer in self.transfers:
             if transfer.id == upload.id:
                 return transfer
 
-    async def _download(self, download, transfer):
-        episode_directory = os.path.join(self.download_directory, str(download.show.name),
+    def _download(self, download):
+        episode_directory = os.path.join(download.download_directory, str(download.show.name),
                                          str(download.show.seasons.get(download.episode.season)))
         os.makedirs(episode_directory, exist_ok=True)
 
-        return await self.torrent2download.download_file(transfer, download_directory=episode_directory)
+        future = asyncio.ensure_future(download.downloader.download_file(download.transfer,
+                                                                             download_directory=episode_directory))
+        self.event_loop.run_until_complete(future)
+        return future.result()
 
-    async def _cleanup(self, upload):
-        logging.info('Cleaning up {}'.format(upload.name))
-        if self.cleanup:
-            await self.torrent2download.delete(upload)
-
-    def __bool__(self):
-        return bool(self.torrent2download)
+    def _cleanup(self, download):
+        logging.info('Cleaning up {}'.format(download.upload.name))
+        self.event_loop.run_until_complete(download.downloader.delete(download.upload))
 
 
 if __name__ == '__main__':

@@ -127,6 +127,8 @@ class TVDBShow:
         self.episodes = []
 
     def fill_data(self):
+        if self.imdb_id:
+            return
         self.imdb_id = self.api.get_imdb_id_from_tvdb_id(self.tvdb_id)
 
         for ep_j in self.api.get_episode_data(self):

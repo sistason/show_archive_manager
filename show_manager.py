@@ -13,7 +13,7 @@ from torrent_downloader import Torrent2Download, DOWNLOADERS
 class ShowManager:
     MAX_MAIN_PROCESSES = 16
 
-    def __init__(self, download_directory, auth, cleanup_premiumize=True, update_missing=False,
+    def __init__(self, download_directory, auth, update_missing=False,
                  quality=None, torrent_site='', downloader=None):
         self.download_directory = download_directory
         self.event_loop = asyncio.get_event_loop()
@@ -22,7 +22,7 @@ class ShowManager:
         self.show2status = Show2Status(download_directory)
         self.status2torrent = Status2Torrent(torrent_site, quality, update_missing=update_missing)
         self.torrent2download = Torrent2Download(downloader, auth, download_directory,
-                                                 self.event_loop, cleanup=cleanup_premiumize)
+                                                 self.event_loop)
 
     def _check_init(self):
         return bool(self.arg2show and self.show2status and self.status2torrent and self.torrent2download)
@@ -82,8 +82,6 @@ if __name__ == '__main__':
                            help='Set the directory to sort the file(s) into.')
     argparser.add_argument('-a', '--auth', type=str, required=True,
                            help="Either 'user:password' or a path to a pw-file with that format (for premiumize.me)")
-    argparser.add_argument('-c', '--cleanup_premiumize', action="store_true",
-                           help="Delete files from My Files after successful download")
     argparser.add_argument('-u', '--update_missing', action="store_true",
                            help="update shows, check if there are missing episode and download them")
     argparser.add_argument('-q', '--quality', type=str, choices=QUALITY_REGEX.get('quality').keys(),
@@ -101,7 +99,7 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(message)s',
                         level=logging.DEBUG)
 
-    sm = ShowManager(args.download_directory, args.auth, cleanup_premiumize=args.cleanup_premiumize,
+    sm = ShowManager(args.download_directory, args.auth,
                      update_missing=args.update_missing, quality=quality_dict, torrent_site=args.torrent_site,
                      downloader=args.downloader)
     sm.manage(args.shows)
