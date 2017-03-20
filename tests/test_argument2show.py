@@ -2,7 +2,7 @@
 
 import unittest
 
-from argument_to_show import Argument2Show
+from a_argument_to_show.argument_to_show import Argument2Show
 from hamcrest import *
 
 

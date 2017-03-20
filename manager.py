@@ -2,7 +2,6 @@
 import os
 import asyncio
 import logging
-from multiprocessing import Process
 
 from a_argument_to_show.argument_to_show import Argument2Show
 from b_show_to_status.show2status import Show2Status
@@ -10,19 +9,24 @@ from c_status_to_torrent.status2torrent import QUALITY_REGEX, Status2Torrent, GR
 from d_torrent_to_download.torrent2download import Torrent2Download, DOWNLOADERS
 
 
-class ShowManager:
-    MAX_MAIN_PROCESSES = 16
+class Information:
+    def __init__(self, download_directory):
+        self.download_directory = download_directory
+        self.show = None
+        self.status = None
+        self.torrents = None
 
+
+class ShowManager:
     def __init__(self, download_directory, auth, update_missing=False,
-                 quality=None, torrent_site='', downloader=None):
+                 quality=None, torrenter=None, downloader=None):
         self.download_directory = download_directory
         self.event_loop = asyncio.get_event_loop()
 
         self.arg2show = Argument2Show()
-        self.show2status = Show2Status(download_directory)
-        self.status2torrent = Status2Torrent(torrent_site, quality, update_missing=update_missing)
-        self.torrent2download = Torrent2Download(downloader, auth, download_directory,
-                                                 self.event_loop)
+        self.show2status = Show2Status(update_missing)
+        self.status2torrent = Status2Torrent(torrenter, quality, update_missing=update_missing)
+        self.torrent2download = Torrent2Download(downloader, auth, self.event_loop)
 
     def _check_init(self):
         return bool(self.arg2show and self.show2status and self.status2torrent and self.torrent2download)
@@ -35,27 +39,17 @@ class ShowManager:
         if not show_arguments:
             show_arguments = self.get_shows_from_directory()
 
-        process_list = []
-        for show in show_arguments:
-            proc_ = Process(target=self._workflow, args=(show,))
-            proc_.start()
-            process_list.append(proc_)
-
-        [proc_.join() for proc_ in process_list]
+        tasks = asyncio.gather(*[self._workflow(arg) for arg in show_arguments])
+        self.event_loop.run_until_complete(tasks)
         self.close()
 
-    def _workflow(self, show_argument):
-        tvdb_show = self.arg2show.argument2show(show_argument)
-        logging.debug('Found show "{}" for argument "{}"'.format(tvdb_show, show_argument))
-        if not tvdb_show:
-            return
-        show_state = self.show2status.analyse(tvdb_show)
-        if not show_state:
-            return
-        show_downloads = self.status2torrent.get_torrents(show_state)
-        if not show_downloads:
-            return
-        self.torrent2download.download(show_downloads)
+    async def _workflow(self, show_argument):
+        show_infos = Information(self.download_directory)
+
+        show_infos.show = self.arg2show.argument2show(show_argument)
+        show_infos.status = self.show2status.analyse(show_infos)
+        show_infos.torrents = await self.status2torrent.get_torrents(show_infos)
+        await self.torrent2download.download(show_infos)
 
     def close(self):
         self.status2torrent.torrent_grabber.close()
@@ -75,9 +69,9 @@ if __name__ == '__main__':
             return path.abspath(string)
         raise argparse.ArgumentTypeError('{} is no directory or isn\'t writeable'.format(string))
 
-    argparser = argparse.ArgumentParser(description="Manage your regular shows.")
+    argparser = argparse.ArgumentParser(description="Manage your tv-show directories")
     argparser.add_argument('shows', nargs='*', type=str,
-                           help='Manage these shows.')
+                           help='Manage these shows or let free to get the shows automatically from download_directory')
     argparser.add_argument('download_directory', type=argcheck_dir, default='.',
                            help='Set the directory to sort the file(s) into.')
     argparser.add_argument('-a', '--auth', type=str, required=True,
@@ -88,18 +82,19 @@ if __name__ == '__main__':
                            help="Choose the quality of the episodes to download")
     argparser.add_argument('-e', '--encoder', type=str, choices=QUALITY_REGEX.get('encoder').keys(),
                            help="Choose the encoder of the episodes to download")
-    argparser.add_argument('-t', '--torrent_site', type=str, default='piratebay', choices=GRABBER.keys(),
+    argparser.add_argument('-t', '--torrenter', type=str, default='piratebay', choices=GRABBER.keys(),
                            help="Choose the encoder of the episodes to download")
     argparser.add_argument('-d', '--downloader', type=str, default='premiumize.me', choices=DOWNLOADERS.keys(),
                            help="Choose the encoder of the episodes to download")
 
     args = argparser.parse_args()
     quality_dict = {'quality': args.quality, 'encoder': args.encoder}
+    torrenter_ = GRABBER.get(args.torrenter)
+    downloader_ = DOWNLOADERS.get(args.downloader)
 
     logging.basicConfig(format='%(message)s',
                         level=logging.DEBUG)
 
-    sm = ShowManager(args.download_directory, args.auth,
-                     update_missing=args.update_missing, quality=quality_dict, torrent_site=args.torrent_site,
-                     downloader=args.downloader)
+    sm = ShowManager(args.download_directory, args.auth, update_missing=args.update_missing,
+                     quality=quality_dict, torrenter=torrenter_, downloader=downloader_)
     sm.manage(args.shows)

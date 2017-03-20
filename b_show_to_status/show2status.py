@@ -1,24 +1,27 @@
 import logging
 import os
 
-from b_show_to_status.show_status import ShowStatus
+from b_show_to_status.show_status import Status
+
 
 class Show2Status:
-    def __init__(self, download_directory):
-        self.download_directory = download_directory
+    def __init__(self, update_missing):
+        self.update_missing = update_missing
 
-    def analyse(self, tvdb_show):
-        logging.debug('Getting status of show "{}" on disk...'.format(tvdb_show.name))
+    def analyse(self, information):
+        logging.debug('Getting status of show "{}" on disk...'.format(information.show.name))
 
-        show_status = ShowStatus(tvdb_show, self.download_directory)
-        show_status.episodes_behind = self._get_episodes_behind(tvdb_show)
-        show_status.episodes_missing = self._get_episodes_missing(tvdb_show)
-        [show_status.episodes_missing.remove(behind) for behind in show_status.episodes_behind]
+        behind = self._get_episodes_behind(information.show, information.download_directory)
+        if self.update_missing:
+            missing = self._get_episodes_missing(information.show, information.download_directory)
+            [missing.remove(behind) for behind in behind]
+        else:
+            missing = []
 
-        return show_status
+        return Status(behind, missing)
 
-    def _get_episodes_behind(self, show):
-        show_directory = os.path.join(self.download_directory, show.name)
+    def _get_episodes_behind(self, show, directory):
+        show_directory = os.path.join(directory, show.name)
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
             return []
@@ -41,9 +44,9 @@ class Show2Status:
                                                                              list(map(str, episodes_to_get))))
         return episodes_to_get
 
-    def _get_episodes_missing(self, show):
+    def _get_episodes_missing(self, show, directory):
         missing_episodes = []
-        show_directory = os.path.join(self.download_directory, show.name)
+        show_directory = os.path.join(directory, show.name)
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
 

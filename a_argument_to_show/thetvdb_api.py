@@ -153,7 +153,7 @@ class TVDBShow:
         today = datetime.date.today()
         return [ep for ep in self.episodes if date <= ep.date <= today]
 
-    def __str__(self):
+    def __repr__(self):
         return '{} [{}]'.format(self.name, self.imdb_id) if self.imdb_id else self.name
 
     def str_verbose(self):
@@ -183,7 +183,7 @@ class Season:
         match = re.match(self.FORMAT.format('(\d+)'), string_)
         return int(match.group(1)) if match else 0
 
-    def __str__(self):
+    def __repr__(self):
         return self.FORMAT.format(self.number)
 
     def str_verbose(self):
@@ -211,7 +211,7 @@ class Episode:
     def get_regex(self):
         return re.compile(r'(?i)s?0*(?P<season>{s.season})[ex]0*(?P<episode>{s.episode})(?!\d)'.format(s=self))
 
-    def __str__(self):
+    def __repr__(self):
         return "s{s.season:02}e{s.episode:02}".format(s=self)
 
     def str_verbose(self):

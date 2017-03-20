@@ -6,36 +6,33 @@ from c_status_to_torrent.piratebay import PiratebayGrabber
 
 
 class Status2Torrent:
-    def __init__(self, torrent_site, quality, update_missing=False):
+    def __init__(self, torrenter, quality, update_missing=False):
         self.event_loop = asyncio.get_event_loop()
-        self.torrent_grabber = GRABBER.get(torrent_site)(self.event_loop) if torrent_site in GRABBER else None
-        if self.torrent_grabber is None:
-            logging.error('Requested torrent site "{}" not available! Cannot continue!'.format(torrent_site))
+        self.torrent_grabber = torrenter(self.event_loop)
         self.quality = quality if quality else {}
         self.update_missing = update_missing
 
     def close(self):
         self.torrent_grabber.close()
 
-    def get_torrents(self, status):
-        logging.debug('Getting torrents for {} ({} eps)...'.format(status.show.name, len(status)))
-        show_download = ShowDownload(status)
+    async def get_torrents(self, information):
+        logging.debug('Getting torrents for {} ({} eps)...'.format(information.show.name, len(information.status)))
 
-        show_download.torrents_behind = self._get_specific_torrents(status.episodes_behind, status)
-        logging.debug('Found {} links to get "{}" up-to-date'.format(len(show_download.torrents_behind),
-                                                                     status.show.name))
+        torrents = await self._get_specific_torrents(information.status.episodes_behind, information)
+        logging.debug('Found {} links to get "{}" up-to-date'.format(len(torrents),
+                                                                     information.show.name))
         if self.update_missing:
-            show_download.torrents_missing = self._get_specific_torrents(status.episodes_missing, status)
-            logging.debug('Found {} links to get "{}" complete'.format(len(show_download.torrents_missing),
-                                                                       status.show.name))
+            torrents_missing = await self._get_specific_torrents(information.status.episodes_missing, information)
+            logging.debug('Found {} links to get "{}" complete'.format(len(torrents_missing),
+                                                                       information.show.name))
+            torrents.extend(torrents_missing)
 
-        return show_download
+        return torrents
 
-    def _get_specific_torrents(self, episodes, status):
-        episode_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(status.show.name, behind))
-                                 for behind in episodes]
-        self.event_loop.run_until_complete(asyncio.gather(*episode_tasks))
-        return [task.result() for task in episode_tasks]
+    async def _get_specific_torrents(self, episodes, information):
+        episode_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(information.show.name, ep))
+                                 for ep in episodes]
+        return await asyncio.gather(*episode_tasks)
 
     async def get_torrent_for_episode(self, name, episode):
         logging.debug('{}: Searching for torrents...'.format(episode))
@@ -69,16 +66,6 @@ class Status2Torrent:
         return True
 
 
-class ShowDownload:
-    def __init__(self, status):
-        self.status = status
-        self.torrents_behind = []
-        self.torrents_missing = []
-
-    def __str__(self):
-        return str(self.status)
-
-
 class Torrent:
     def __init__(self, episode, results):
         self.episode = episode
@@ -86,6 +73,8 @@ class Torrent:
 
 
 GRABBER = {'piratebay': PiratebayGrabber, 'default': PiratebayGrabber}
+
+
 QUALITY_REGEX = {
     'quality': {
         '1080p': re.compile(r'(?i)1080p'),

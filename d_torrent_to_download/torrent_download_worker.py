@@ -13,7 +13,7 @@ class TorrentDownloadWorker(Process):
         self.event_loop = event_loop
 
     def run(self):
-        while not self.shutdown or self.downloads_queue.empty():
+        while not self.shutdown and not self.downloads_queue.empty():
             download = self.downloads_queue.get()
             if self._is_transfer_ready_to_download(download):
                 self._download(download)
@@ -22,7 +22,7 @@ class TorrentDownloadWorker(Process):
     def _is_transfer_ready_to_download(self, download):
         download.transfer = self._get_torrent_transfer(download.upload)
         if download.transfer is None:
-            logging.error('Error torrenting {}, torrent not found anymore!'.format(download.name))
+            logging.error('Error torrenting {}, torrent not found anymore!'.format(download.information.show.name))
             return False
 
         if download.transfer.is_running():
@@ -41,15 +41,13 @@ class TorrentDownloadWorker(Process):
                 return transfer
 
     def _download(self, download):
-        episode_directory = os.path.join(download.download_directory, str(download.show.name),
-                                         str(download.show.seasons.get(download.episode.season)))
+        episode_directory = os.path.join(download.information.download_directory, str(download.information.show.name),
+                                         str(download.information.show.seasons.get(download.episode.season)))
         os.makedirs(episode_directory, exist_ok=True)
 
-        future = asyncio.ensure_future(download.downloader.download_file(download.transfer,
-                                                                             download_directory=episode_directory))
-        self.event_loop.run_until_complete(future)
-        return future.result()
+        asyncio.run_coroutine_threadsafe(download.downloader.download_file(download.transfer, episode_directory),
+                                         self.event_loop)
 
     def _cleanup(self, download):
         logging.info('Cleaning up {}'.format(download.upload.name))
-        self.event_loop.run_until_complete(download.downloader.delete(download.upload))
+        asyncio.run_coroutine_threadsafe(download.downloader.delete(download.upload), self.event_loop)

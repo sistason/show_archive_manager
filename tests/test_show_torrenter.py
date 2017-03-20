@@ -3,7 +3,7 @@
 import unittest
 
 from hamcrest import *
-from tests.test_mocks import SHOW_STATUS_MOCK, SHOW_DOWNLOAD_MOCK, STATUS2TORRENT_MOCK
+from tests.test_mocks import INFORMATION_MOCK, STATUS2TORRENT_MOCK
 
 
 class ShowTorrenterTester(unittest.TestCase):
@@ -11,9 +11,9 @@ class ShowTorrenterTester(unittest.TestCase):
         self._class = STATUS2TORRENT_MOCK
 
     def test_get_torrent(self):
-        show_download = self._class.get_torrents(SHOW_STATUS_MOCK)
-        assert_that(len(show_download.torrents_behind), equal_to(1))
-        assert_that(show_download.torrents_behind[0].links, equal_to(SHOW_DOWNLOAD_MOCK.torrents_behind[0].links))
+        torrents = self._class.get_torrents(INFORMATION_MOCK)
+        assert_that(len(torrents), equal_to(1))
+        assert_that(torrents[0].links, equal_to(INFORMATION_MOCK.torrents[0].links))
         self._class.torrent_grabber.event_loop.close()
 
     def test_init(self):
