@@ -11,3 +11,11 @@
 4. Download file via premiumize.me
 5. On premiumize.me-DL-finish:
     download to fitting location and delete
+
+
+
+
+python >3.5.2
+- bs4 + lxml
+- aiohttp
+- aiofiles

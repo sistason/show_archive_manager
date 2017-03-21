@@ -63,6 +63,6 @@ class PiratebayGrabber:
 class PirateBayParser:
     @staticmethod
     def parse_piratebay_response(text):
-        bs4_response = bs4.BeautifulSoup(text, "html5lib")
+        bs4_response = bs4.BeautifulSoup(text, "lxml")
         main_table = bs4_response.find('table', attrs={'id': 'searchResult'})
         return [PirateBayResult(tag) for tag in main_table.find_all('tr')[1:]]

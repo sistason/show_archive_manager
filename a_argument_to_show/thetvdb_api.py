@@ -156,11 +156,17 @@ class TVDBShow:
     def __repr__(self):
         return '{} [{}]'.format(self.name, self.imdb_id) if self.imdb_id else self.name
 
+    def __str__(self):
+        return self.name
+
     def str_verbose(self):
         return "{}\n{}".format(str(self), '\t\n'.join(map(lambda f: f.str_verbose(), self.seasons.values())))
 
     def __bool__(self):
         return bool(self.name) and bool(self.seasons)
+
+    def get_storage_name(self):
+        return '{} [{}]'.format(self.name, self.imdb_id)
 
 
 class Season:

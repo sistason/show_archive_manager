@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import os
 import asyncio
 import logging
+import os
 
 from a_argument_to_show.argument_to_show import Argument2Show
 from b_show_to_status.show2status import Show2Status
@@ -25,7 +25,7 @@ class ShowManager:
 
         self.arg2show = Argument2Show()
         self.show2status = Show2Status(update_missing)
-        self.status2torrent = Status2Torrent(torrenter, quality, update_missing=update_missing)
+        self.status2torrent = Status2Torrent(torrenter, quality, self.event_loop, update_missing=update_missing)
         self.torrent2download = Torrent2Download(downloader, auth, self.event_loop)
 
     def _check_init(self):
@@ -40,8 +40,14 @@ class ShowManager:
             show_arguments = self.get_shows_from_directory()
 
         tasks = asyncio.gather(*[self._workflow(arg) for arg in show_arguments])
-        self.event_loop.run_until_complete(tasks)
-        self.close()
+        try:
+            self.event_loop.run_until_complete(tasks)
+        except KeyboardInterrupt:
+            pass
+        except Exception as e:
+            raise e
+        finally:
+            self.close()
 
     async def _workflow(self, show_argument):
         show_infos = Information(self.download_directory)
@@ -57,17 +63,19 @@ class ShowManager:
         self.event_loop.close()
 
     def get_shows_from_directory(self):
-        return [listing for listing in os.listdir(self.download_directory) if path.isdir(listing)]
+        base_dir = os.path.abspath(self.download_directory)
+        return [listing for listing in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, listing))]
 
 
 if __name__ == '__main__':
     import argparse
-    from os import path, access, W_OK, R_OK
+
 
     def argcheck_dir(string):
-        if path.isdir(string) and access(string, W_OK) and access(string, R_OK):
-            return path.abspath(string)
+        if os.path.isdir(string) and os.access(string, os.W_OK) and os.access(string, os.R_OK):
+            return os.path.abspath(string)
         raise argparse.ArgumentTypeError('{} is no directory or isn\'t writeable'.format(string))
+
 
     argparser = argparse.ArgumentParser(description="Manage your tv-show directories")
     argparser.add_argument('shows', nargs='*', type=str,
