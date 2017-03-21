@@ -27,15 +27,32 @@ class Argument2Show:
     def _search_for_title(self, title, year=None):
         shows = self.tvdb_api.get_shows_by_search(title, year=year)
         if shows:
-            logging.debug('Found matches "{}" for argument "{}"'.format(','.join(map(str, shows)), title))
+            if len(shows) == 1:
+                return shows[0]
 
-            # TODO: Interactive as a solution to multiples?
-            # best_result, result_ratio = max(map(lambda r: (fuzz.token_set_ratio(r, title), r), results))
-            best_result = max([s for s in shows if s.raw.get('status', '') == 'Continuing' and s.raw.get('overview')],
-                              key=lambda s: len(s.raw.get('overview')))
-            logging.debug('Best result for Argument "{}" is Show "{}"'.format(title, best_result))
+            logging.info('Found {} matches for argument "{}"'.format(len(shows), title))
+            best_result = max([s for s in shows if s and s.raw.get('overview')], key=len)
+            logging.info('Best result for Argument "{}" is "{}"'.format(title, repr(best_result)))
+
+            if logging.getLogger(__name__).level <= logging.INFO:
+                return self._interactive_select_show(title, shows, best_result)
 
             return best_result
 
     def __bool__(self):
         return bool(self.tvdb_api)
+
+    @staticmethod
+    def _interactive_select_show(title, shows, best_result):
+        shows.sort(key=lambda s: s.aired)
+        logging.info('Select which show best matches argument "{}":'.format(title))
+        for i, s_ in enumerate(shows):
+            logging.info('{}{:2}: {}'.format('!' if s_ == best_result else ' ', i, s_.get_brief()))
+
+        selection = input('Input a <number> or blank for the best result (indicator: "!")')
+        if not selection:
+            return best_result
+        if not selection.isdigit():
+            return None
+        return shows[int(selection)]
+

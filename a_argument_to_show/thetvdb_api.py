@@ -3,7 +3,7 @@ import json
 import logging
 import re
 import time
-
+from multiprocessing import Process, Queue
 import requests
 
 
@@ -42,6 +42,8 @@ class TheTVDBAPI:
         responses = self._validate_response_to_json(response)
         if year:
             responses = self._filter_search_by_year(responses, year)
+        if len(responses) > 1:
+            return [s for s in self._jsons_to_show_threaded(responses) if s]
         return [self._json_to_show(r) for r in responses]
 
     def get_show_by_imdb_id(self, imdb_id):
@@ -53,7 +55,21 @@ class TheTVDBAPI:
     def _json_to_show(self, response):
         show = TVDBShow(response, self) if response else None
         show.fill_data()
-        return show
+        return show if show else None
+
+    def _jsons_to_show_threaded(self, responses):
+        queue = Queue()
+        process_list = []
+        for response in responses:
+            proc_ = Process(target=self._json_to_show_threaded, args=(response, queue))
+            proc_.start()
+            process_list.append(proc_)
+
+        [p.join() for p in process_list]
+        return [queue.get_nowait() for _ in range(queue.qsize())]
+
+    def _json_to_show_threaded(self, response, queue):
+        queue.put(self._json_to_show(response))
 
     def _filter_search_by_year(self, responses, year):
         return [r for r in responses if str(self.get_airdate(r).year) == str(year)]
@@ -80,14 +96,14 @@ class TheTVDBAPI:
                 return
 
     def get_episode_data(self, tvdb_show, page=1):
-        logging.debug('Getting episode_data for show "{}"...'.format(tvdb_show))
+        logging.debug('Getting episode_data for show "{}"...'.format(repr(tvdb_show)))
         data = []
         response = self._make_request('/series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
         if response is not None and response.ok:
             ret_j = json.loads(response.text)
             data.extend(ret_j.get('data', []))
             errors = ret_j.get('errors')
-            if errors:
+            if errors and not data:
                 logging.warning('Getting episode_data for show "{}" showed errors: {}'.format(tvdb_show, errors))
                 return []
             next_ = ret_j.get('links', {}).get('next')
@@ -119,6 +135,7 @@ class TVDBShow:
 
         self.aired = self.api.get_airdate(json_result)
         self.name = json_result.get('seriesName', '')
+        self.overview = json_result.get('overview', '') if json_result.get('overview') else ''
         self.tvdb_id = json_result.get('id', 0)
         self.imdb_id = ''
 
@@ -167,6 +184,13 @@ class TVDBShow:
 
     def get_storage_name(self):
         return '{} [{}]'.format(self.name, self.imdb_id)
+
+    def get_brief(self):
+        return '{:25} [{:9}] | {} | {:3} episodes | {}'.format(self.name[:25], self.imdb_id, self.aired.year,
+                                                        len(self.episodes), self.overview[:40])
+
+    def __len__(self):
+        return len(self.episodes)
 
 
 class Season:

@@ -39,7 +39,16 @@ class ShowManager:
         if not show_arguments:
             show_arguments = self.get_shows_from_directory()
 
-        tasks = asyncio.gather(*[self._workflow(arg) for arg in show_arguments])
+        # Convert Arguments to shows synchronous, as they might require user input and getting them right is important.
+        shows = []
+        for arg in show_arguments:
+            s_ = self.arg2show.argument2show(arg)
+            if s_ is not None:
+                shows.append(s_)
+
+        print(shows)
+        return
+        tasks = asyncio.gather(*[self._workflow(show) for show in shows])
         try:
             self.event_loop.run_until_complete(tasks)
         except KeyboardInterrupt:
@@ -49,10 +58,10 @@ class ShowManager:
         finally:
             self.close()
 
-    async def _workflow(self, show_argument):
+    async def _workflow(self, show):
         show_infos = Information(self.download_directory)
+        show_infos.show = show
 
-        show_infos.show = self.arg2show.argument2show(show_argument)
         show_infos.status = self.show2status.analyse(show_infos)
         show_infos.torrents = await self.status2torrent.get_torrents(show_infos)
         await self.torrent2download.download(show_infos)
