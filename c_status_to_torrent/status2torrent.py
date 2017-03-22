@@ -18,19 +18,19 @@ class Status2Torrent:
         logging.debug('Getting torrents for {} ({} eps)...'.format(information.show.name, len(information.status)))
 
         torrents = await self._get_specific_torrents(information.status.episodes_behind, information)
-        logging.debug('Found {} links to get "{}" up-to-date'.format(len(torrents),
-                                                                     information.show.name))
+        logging.debug('Found {} torrents to get "{}" up-to-date'.format(sum([len(l) for l in torrents if l]),
+                                                                        information.show.name))
         if self.update_missing:
             torrents_missing = await self._get_specific_torrents(information.status.episodes_missing, information)
-            logging.debug('Found {} links to get "{}" complete'.format(len(torrents_missing),
-                                                                       information.show.name))
+            logging.debug('Found {} torrents to get "{}" complete'.format(sum([len(l) for l in torrents_missing if l]),
+                                                                          information.show.name))
             torrents.extend(torrents_missing)
 
         return torrents
 
     async def _get_specific_torrents(self, episodes, information):
         episode_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(information.show.name, ep))
-                                 for ep in episodes]
+                         for ep in episodes]
         return await asyncio.gather(*episode_tasks)
 
     async def get_torrent_for_episode(self, name, episode):
@@ -39,7 +39,7 @@ class Status2Torrent:
         results = await self.torrent_grabber.search(name, episode)
         filtered_results = self.filter_searches(results, episode)
 
-        logging.debug('{}: Found {} torrents, {} of those matching'.format(episode, len(results),
+        logging.debug('{}: Found {:2} torrents, {} of those match'.format(episode, len(results),
                                                                            len(filtered_results)))
 
         sorted_results = self.sort_results(filtered_results)
@@ -69,6 +69,9 @@ class Torrent:
     def __init__(self, episode, results):
         self.episode = episode
         self.links = [t.magnet for t in results]
+
+    def __len__(self):
+        return len(self.links)
 
 
 GRABBER = {'piratebay': PiratebayGrabber, 'default': PiratebayGrabber}

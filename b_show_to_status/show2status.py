@@ -21,14 +21,15 @@ class Show2Status:
         return Status(behind, missing)
 
     def _get_episodes_behind(self, show, directory):
+        latest_season = show.seasons.get(max(show.seasons.keys()))
+
         show_directory = os.path.join(directory, show.name)
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
-            return []
+            return latest_season.episodes if latest_season else []
 
-        latest_season = show.seasons.get(max(show.seasons.keys()))
-        seasons = [latest_season.get_season_from_string(s) for s in os.listdir(show_directory) if os.path.isdir(s)]
-
+        seasons = [latest_season.get_season_from_string(s) for s in os.listdir(show_directory)
+                   if os.path.isdir(os.path.join(show_directory, s))]
         newest_season = show.seasons.get(max(seasons, default=-1), latest_season)
 
         episodes_available = self._get_episodes_in_season_directory(newest_season, show_directory)

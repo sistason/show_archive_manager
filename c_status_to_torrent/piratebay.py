@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import logging
 import bs4
+import re
 
 
 class PirateBayResult:
@@ -54,7 +55,8 @@ class PiratebayGrabber:
 
     async def search(self, name, episode):
         query = "{} {}".format(name, str(episode))
-        response = await self._make_request(self.url + '/search/{}/0/99/205'.format(query))
+        query = re.sub(r'[^\w\d\s]', '', query)
+        response = await self._make_request(self.url + '/search/{}/0/99/200'.format(query))
         if response:
             return self.parser.parse_piratebay_response(response)
         return []
@@ -65,4 +67,6 @@ class PirateBayParser:
     def parse_piratebay_response(text):
         bs4_response = bs4.BeautifulSoup(text, "lxml")
         main_table = bs4_response.find('table', attrs={'id': 'searchResult'})
-        return [PirateBayResult(tag) for tag in main_table.find_all('tr')[1:]]
+        if main_table:
+            return [PirateBayResult(tag) for tag in main_table.find_all('tr')[1:]]
+        return []

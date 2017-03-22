@@ -46,8 +46,6 @@ class ShowManager:
             if s_ is not None:
                 shows.append(s_)
 
-        print(shows)
-        return
         tasks = asyncio.gather(*[self._workflow(show) for show in shows])
         try:
             self.event_loop.run_until_complete(tasks)

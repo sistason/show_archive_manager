@@ -34,7 +34,7 @@ class Torrent2Download:
     def close(self):
         self.shutdown = True
         if self._transfers_updater is not None:
-            for _ in range(self.CHECK_EVERY):
+            for _ in range(self.CHECK_EVERY*2):
                 if self._transfers_updater.done():
                     break
                 sleep(1)
