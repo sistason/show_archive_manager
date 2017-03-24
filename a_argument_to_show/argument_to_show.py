@@ -12,8 +12,9 @@ class Argument2Show:
 
     def argument2show(self, argument_show):
         logging.debug('Converting argument "{}" to show...'.format(argument_show))
-        if argument_show.startswith('tt'):
-            show = self.tvdb_api.get_show_by_imdb_id(argument_show)
+        imdb_id = re.search(r'(?P<id>tt\d{7})', argument_show)
+        if imdb_id:
+            show = self.tvdb_api.get_show_by_imdb_id(imdb_id.group('id'))
             logging.debug('Found show "{}" for argument "{}"'.format(show, argument_show))
             return show
 

@@ -23,7 +23,7 @@ class Show2Status:
     def _get_episodes_behind(self, show, directory):
         latest_season = show.seasons.get(max(show.seasons.keys()))
 
-        show_directory = os.path.join(directory, show.name)
+        show_directory = os.path.join(directory, show.get_storage_name())
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
             return latest_season.episodes if latest_season else []
@@ -47,7 +47,7 @@ class Show2Status:
 
     def _get_episodes_missing(self, show, directory):
         missing_episodes = []
-        show_directory = os.path.join(directory, show.name)
+        show_directory = os.path.join(directory, show.get_storage_name())
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
 

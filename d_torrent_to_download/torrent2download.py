@@ -54,7 +54,9 @@ class Torrent2Download:
 
         workers = [asyncio.ensure_future(self.worker()) for _ in range(self.MAX_WORKERS)]
         await asyncio.gather(*workers)
+        print('ALl workers gathered')
         await self.downloads_queue.join()
+        print('ALl workers joined')
 
     async def _start_torrenting(self, information):
         logging.info('Start torrenting {}...'.format(information.show.name))
@@ -111,12 +113,15 @@ class Torrent2Download:
                                                                        download.transfer.message))
 
                 self.downloads_queue.task_done()
-                print(self.downloads_queue.qsize(), end=' ')
+                print(self.downloads_queue.qsize())
 
                 await asyncio.sleep(5)
 
         except asyncio.QueueEmpty:
             logging.debug('Downloads_Queue is empty, work is finished.')
+        except Exception as e:
+            print('worker-e:', e)
+        print('worker finished!')
 
     def _get_torrent_transfer(self, upload):
         for transfer in self.transfers:

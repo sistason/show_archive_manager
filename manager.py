@@ -50,8 +50,10 @@ class ShowManager:
         try:
             self.event_loop.run_until_complete(tasks)
         except KeyboardInterrupt:
-            pass
+            print('kbi')
         except Exception as e:
+            print('exception!')
+            print(e)
             raise e
         finally:
             self.close()
