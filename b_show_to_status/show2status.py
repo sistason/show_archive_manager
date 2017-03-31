@@ -18,7 +18,9 @@ class Show2Status:
         else:
             missing = []
 
-        return Status(behind, missing)
+        status = Status(behind, missing)
+        logging.info('{} {}'.format(information.show.name, status))
+        return status
 
     def _get_episodes_behind(self, show, directory):
         latest_season = show.seasons.get(max(show.seasons.keys()))

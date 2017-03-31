@@ -65,7 +65,7 @@ class TheTVDBAPI:
             proc_.start()
             process_list.append(proc_)
 
-        [p.join() for p in process_list]
+        [p.join(5) for p in process_list]
         return [queue.get_nowait() for _ in range(queue.qsize())]
 
     def _json_to_show_threaded(self, response, queue):
@@ -96,7 +96,8 @@ class TheTVDBAPI:
                 return
 
     def get_episode_data(self, tvdb_show, page=1):
-        logging.debug('Getting episode_data for show "{}"...'.format(repr(tvdb_show)))
+        if page == 1:
+            logging.debug('Getting episode_data for show "{}"...'.format(repr(tvdb_show)))
         data = []
         response = self._make_request('/series/{}/episodes?page={}'.format(tvdb_show.tvdb_id, page))
         if response is not None and response.ok:

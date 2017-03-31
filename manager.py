@@ -50,7 +50,7 @@ class ShowManager:
         try:
             self.event_loop.run_until_complete(tasks)
         except KeyboardInterrupt:
-            print('kbi')
+            pass
         except Exception as e:
             print('exception!')
             print(e)
@@ -63,17 +63,22 @@ class ShowManager:
         show_infos.show = show
 
         show_infos.status = self.show2status.analyse(show_infos)
+        if not len(show_infos.status):
+            return
         show_infos.torrents = await self.status2torrent.get_torrents(show_infos)
+        if not show_infos.torrents:
+            return
         await self.torrent2download.download(show_infos)
 
     def close(self):
         self.status2torrent.torrent_grabber.close()
-        self.torrent2download.close()
+        self.event_loop.run_until_complete(self.torrent2download.close())
         self.event_loop.close()
 
     def get_shows_from_directory(self):
         base_dir = os.path.abspath(self.download_directory)
-        return [listing for listing in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, listing))]
+        return [listing for listing in os.listdir(base_dir)
+                if os.path.isdir(os.path.join(base_dir, listing)) and not listing.startswith('#')]
 
 
 if __name__ == '__main__':
@@ -103,6 +108,7 @@ if __name__ == '__main__':
                            help="Choose the encoder of the episodes to download")
     argparser.add_argument('-d', '--downloader', type=str, default='premiumize.me', choices=DOWNLOADERS.keys(),
                            help="Choose the encoder of the episodes to download")
+    argparser.add_argument('-v', '--verbose', action='store_true')
 
     args = argparser.parse_args()
     quality_dict = {'quality': args.quality, 'encoder': args.encoder}
@@ -110,7 +116,7 @@ if __name__ == '__main__':
     downloader_ = DOWNLOADERS.get(args.downloader)
 
     logging.basicConfig(format='%(message)s',
-                        level=logging.DEBUG)
+                        level=logging.DEBUG if args.verbose else logging.INFO)
 
     sm = ShowManager(args.download_directory, args.auth, update_missing=args.update_missing,
                      quality=quality_dict, torrenter=torrenter_, downloader=downloader_)
