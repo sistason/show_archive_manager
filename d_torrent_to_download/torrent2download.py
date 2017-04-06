@@ -16,7 +16,7 @@ class Download:
         self.upload = upload
         self.transfer = None
 
-        self.retries = 5
+        self.retries = 10
 
 
 class Torrent2Download:
@@ -169,7 +169,7 @@ class Torrent2Download:
 
         file_ = await download.downloader.get_file_from_transfer(download.transfer)
         if file_:
-            await download.downloader.download_file(file_, episode_directory)
+            return await download.downloader.download_file(file_, episode_directory)
 
     @staticmethod
     async def _cleanup(download):

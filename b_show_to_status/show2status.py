@@ -14,7 +14,7 @@ class Show2Status:
         behind = self._get_episodes_behind(information.show, information.download_directory)
         if self.update_missing:
             missing = self._get_episodes_missing(information.show, information.download_directory)
-            [missing.remove(behind) for behind in behind]
+            [missing.remove(behind) for behind in behind if behind in missing]
         else:
             missing = []
 
