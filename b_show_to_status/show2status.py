@@ -9,11 +9,14 @@ class Show2Status:
         self.update_missing = update_missing
 
     def analyse(self, information):
-        logging.debug('Getting status of show "{}" on disk...'.format(information.show.name))
+        show_, dl_directory_ = information.show, information.download_directory
+        logging.debug('Getting status of show "{}" on disk...'.format(show_.name))
 
-        behind = self._get_episodes_behind(information.show, information.download_directory)
+        latest_season = show_.seasons.get(max(show_.seasons.keys()))
+        behind = self._get_episodes_missing(show_, latest_season, dl_directory_)
+
         if self.update_missing:
-            missing = self._get_episodes_missing(information.show, information.download_directory)
+            missing = [self._get_episodes_missing(show_, season, dl_directory_) for season in show_.seasons.values()]
             [missing.remove(behind) for behind in behind if behind in missing]
         else:
             missing = []
@@ -22,46 +25,20 @@ class Show2Status:
         logging.info('{} {}'.format(information.show.name, status))
         return status
 
-    def _get_episodes_behind(self, show, directory):
-        latest_season = show.seasons.get(max(show.seasons.keys()))
-
-        show_directory = os.path.join(directory, show.get_storage_name())
-        if not os.path.exists(show_directory):
-            logging.warning('Directory for show "{}" does not exist!'.format(show.name))
-            return latest_season.episodes if latest_season else []
-
-        seasons = [latest_season.get_season_from_string(s) for s in os.listdir(show_directory)
-                   if os.path.isdir(os.path.join(show_directory, s))]
-        newest_season = show.seasons.get(max(seasons, default=-1), latest_season)
-
-        episodes_available = self._get_episodes_in_season_directory(newest_season, show_directory)
-        if not episodes_available:
-            logging.warning('Show "{}"s latest season-directory is empty'.format(show.name))
-            return newest_season.episodes
-
-        current_episode = max(episodes_available, key=lambda e: e.episode)
-        episodes_to_get = show.get_episodes_since(current_episode.date)
-        # use <= and remove, instead of <, so multiple episodes on the same day do not get skipped
-        episodes_to_get.remove(current_episode)
-        logging.debug('{} has current_episode {} and needs to get {}'.format(show.name, current_episode,
-                                                                             list(map(str, episodes_to_get))))
-        return episodes_to_get
-
-    def _get_episodes_missing(self, show, directory):
-        missing_episodes = []
+    def _get_episodes_missing(self, show, season, directory):
         show_directory = os.path.join(directory, show.get_storage_name())
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
 
-        logging.debug('{} has missing episodes:'.format(show.name))
-        for season_nr, season in show.seasons.items():
-            episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
-            missing_ = [ep for ep in season.get_aired_episodes()
-                        if ep not in episodes_in_dir]
-            missing_episodes.extend(missing_)
-            logging.debug('  Season {}: {}'.format(season_nr, list(map(str, missing_))))
+        episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
+        if not episodes_in_dir:
+            logging.warning('Directory for season {} does not exist!'.format(season.number))
 
-        return missing_episodes
+        missing_ = [ep for ep in season.get_aired_episodes()
+                    if ep not in episodes_in_dir]
+
+        logging.debug('{} - Missing episodes of season {}: {}'.format(show, season.number, list(map(str, missing_))))
+        return missing_
 
     @staticmethod
     def _get_episodes_in_season_directory(season, show_directory):
