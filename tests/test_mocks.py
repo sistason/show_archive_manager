@@ -4,9 +4,8 @@ from unittest.mock import MagicMock
 from manager import Information
 from a_argument_to_show.thetvdb_api import TheTVDBAPI, TVDBShow, Episode
 from b_show_to_status.show_status import Status
-from c_status_to_torrent.status2torrent import Status2Torrent, Torrent, GRABBER
+from c_status_to_torrent.status2torrent import Status2Torrent, Torrent
 from c_status_to_torrent.piratebay import PirateBayParser
-from d_torrent_to_download.torrent2download import Torrent2Download
 
 from tests.test_mocks_data import EPISODE_DATA_MOCK, SHOWS_DATA_MOCK, PIRATEBAY_RESPONSE_SHORTENED
 
@@ -32,8 +31,7 @@ INFORMATION_MOCK.show = TVDB_SHOW_MOCK
 SHOW_STATUS_MOCK = Status([], [SINGLE_EPISODE_MOCK])
 INFORMATION_MOCK.status = SHOW_STATUS_MOCK
 
-STATUS2TORRENT_MOCK = Status2Torrent(GRABBER.get('piratebay'), {'quality': '480p', 'encoder': 'x264'},
-                                     update_missing=True)
+STATUS2TORRENT_MOCK = Status2Torrent({'quality': '480p', 'encoder': 'x264'}, update_missing=True)
 
 piratebay_parser = PirateBayParser()
 PIRATEBAY_RESULTS = piratebay_parser.parse_piratebay_response(PIRATEBAY_RESPONSE_SHORTENED)

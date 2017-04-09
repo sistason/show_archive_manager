@@ -23,8 +23,9 @@ class Torrent2Download:
     CHECK_EVERY = 5
     WORKER_PER_SHOW = 5
 
-    def __init__(self, downloader, login, event_loop):
+    def __init__(self, login, event_loop):
         self.event_loop = event_loop
+        downloader = DOWNLOADERS.get('default')
         self.torrent_downloader = downloader(login, self.event_loop)
 
         self.downloads_queue = asyncio.Queue()

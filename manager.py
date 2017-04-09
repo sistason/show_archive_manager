@@ -19,14 +19,14 @@ class Information:
 
 class ShowManager:
     def __init__(self, download_directory, auth, update_missing=False,
-                 quality=None, torrenter=None, downloader=None):
+                 quality=None):
         self.download_directory = download_directory
         self.event_loop = asyncio.get_event_loop()
 
         self.arg2show = Argument2Show()
         self.show2status = Show2Status(update_missing)
-        self.status2torrent = Status2Torrent(torrenter, quality, self.event_loop, update_missing=update_missing)
-        self.torrent2download = Torrent2Download(downloader, auth, self.event_loop)
+        self.status2torrent = Status2Torrent(quality, self.event_loop, update_missing=update_missing)
+        self.torrent2download = Torrent2Download(auth, self.event_loop)
 
     def _check_init(self):
         return bool(self.arg2show and self.show2status and self.status2torrent and self.torrent2download)
@@ -103,10 +103,6 @@ if __name__ == '__main__':
     argparser.add_argument('-q', '--quality', type=str, choices=QUALITY_REGEX.get('quality').keys(),
                            help="Choose the quality of the episodes to download")
     argparser.add_argument('-e', '--encoder', type=str, choices=QUALITY_REGEX.get('encoder').keys(),
-                           help="Choose the encoder of the episodes to download")
-    argparser.add_argument('-t', '--torrenter', type=str, default='piratebay', choices=GRABBER.keys(),
-                           help="Choose the encoder of the episodes to download")
-    argparser.add_argument('-d', '--downloader', type=str, default='premiumize.me', choices=DOWNLOADERS.keys(),
                            help="Choose the encoder of the episodes to download")
     argparser.add_argument('-v', '--verbose', action='store_true')
 

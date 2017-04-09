@@ -6,7 +6,8 @@ from c_status_to_torrent.piratebay import PiratebayGrabber
 
 
 class Status2Torrent:
-    def __init__(self, torrenter, quality, event_loop, update_missing=False):
+    def __init__(self, quality, event_loop, update_missing=False):
+        torrenter = GRABBER.get('default')
         self.torrent_grabber = torrenter(event_loop)
         self.quality = quality if quality else {}
         self.update_missing = update_missing
