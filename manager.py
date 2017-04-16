@@ -5,8 +5,8 @@ import os
 
 from a_argument_to_show.argument_to_show import Argument2Show
 from b_show_to_status.show2status import Show2Status
-from c_status_to_torrent.status2torrent import QUALITY_REGEX, Status2Torrent, GRABBER
-from d_torrent_to_download.torrent2download import Torrent2Download, DOWNLOADERS
+from c_status_to_torrent.status2torrent import QUALITY_REGEX, Status2Torrent
+from d_torrent_to_download.torrent2download import Torrent2Download
 
 
 class Information:
@@ -108,12 +108,10 @@ if __name__ == '__main__':
 
     args = argparser.parse_args()
     quality_dict = {'quality': args.quality, 'encoder': args.encoder}
-    torrenter_ = GRABBER.get(args.torrenter)
-    downloader_ = DOWNLOADERS.get(args.downloader)
 
     logging.basicConfig(format='%(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
     sm = ShowManager(args.download_directory, args.auth, update_missing=args.update_missing,
-                     quality=quality_dict, torrenter=torrenter_, downloader=downloader_)
+                     quality=quality_dict)
     sm.manage(args.shows)

@@ -139,9 +139,9 @@ class Torrent2Download:
                                                            download.transfer.message))
 
     async def _worker_handle_download(self, download):
-        success = await self._download(download)
-        if success:
-            await self._cleanup(download)
+        success_file = await self._download(download)
+        if success_file:
+            await self._cleanup(download, success_file)
             logging.debug('Finished downloading {} {}'.format(download.information.show.name,
                                                               download.episode))
         elif download.retries > 0:
@@ -170,12 +170,14 @@ class Torrent2Download:
 
         file_ = await download.downloader.get_file_from_transfer(download.transfer)
         if file_:
-            return await download.downloader.download_file(file_, episode_directory)
+            success = await download.downloader.download_file(file_, episode_directory)
+            if success:
+                return file_
 
     @staticmethod
-    async def _cleanup(download):
-        logging.info('Cleaning up {}'.format(download.upload.name))
-        await download.downloader.delete(download.upload)
+    async def _cleanup(download, file_):
+        logging.info('Cleaning up {}'.format(file_.name))
+        await download.downloader.delete(file_)
 
     def __bool__(self):
         return bool(self.torrent_downloader)
