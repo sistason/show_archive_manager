@@ -55,7 +55,7 @@ class PiratebayGrabber:
 
     async def search(self, name, episode):
         query = "{} {}".format(name, str(episode))
-        query = re.sub(r'[^\w\d\s]', '', query)
+        query = re.sub(r'[^\w\d\s.]', '', query)
         response = await self._make_request(self.url + '/search/{}/0/99/200'.format(query))
         if response:
             return self.parser.parse_piratebay_response(response)
