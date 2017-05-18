@@ -8,9 +8,9 @@ DOWNLOADERS = {'premiumize.me': PremiumizeMeAPI, 'default': PremiumizeMeAPI}
 
 
 class Download:
-    def __init__(self, information, episode, upload, downloader):
+    def __init__(self, information, reference, upload, downloader):
         self.information = information
-        self.episode = episode
+        self.reference = reference
         self.downloader = downloader
 
         self.upload = upload
@@ -94,10 +94,10 @@ class Torrent2Download:
             if upload_ is not None:
                 if upload_.id not in upload_ids:
                     upload_ids.append(upload_.id)
-                    download = Download(information, torrent.episode, upload_, self.torrent_downloader)
+                    download = Download(information, torrent.reference, upload_, self.torrent_downloader)
                     await self.downloads_queue.put(download)
                     return
-                logging.warning('Link "{}" for episode "{}" was a duplicate'.format(link[:50], torrent.episode))
+                logging.warning('Link "{}" for "{}" was a duplicate'.format(link[:50], torrent.reference))
 
     async def worker(self):
         try:
@@ -130,8 +130,12 @@ class Torrent2Download:
         if download.transfer is None:
             logging.error('Error torrenting {}: Torrent not found anymore!'.format(
                 download.information.show.name))
+            # Reinsert download $retries times, as premiumize.me forgets the transfer between "finished" and "ready"
+            if download.retries > 0:
+                download.retries -= 1
+                return True
         elif download.transfer.is_running():
-            logging.debug('{} {}: {}'.format(download.information.show.name, download.episode,
+            logging.debug('{} {}: {}'.format(download.information.show.name, download.reference,
                                              download.transfer.status_msg()))
             return True
         else:
@@ -143,13 +147,13 @@ class Torrent2Download:
         if success_file:
             await self._cleanup(download, success_file)
             logging.debug('Finished downloading {} {}'.format(download.information.show.name,
-                                                              download.episode))
+                                                              download.reference))
         elif download.retries > 0:
             download.retries -= 1
             return True
         else:
             logging.error('Download {} {} was not downloadeable.'.format(download.information.show.name,
-                                                                         download.episode))
+                                                                         download.reference))
 
     def _get_torrent_transfer(self, upload):
         for transfer in self.transfers:

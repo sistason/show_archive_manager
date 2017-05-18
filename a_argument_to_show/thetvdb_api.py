@@ -214,6 +214,9 @@ class Season:
         match = re.match(self.FORMAT.format('(\d+)'), string_)
         return int(match.group(1)) if match else 0
 
+    def get_regex(self):
+        return re.compile(r'(?i)s?0*(?P<season>{})'.format(self.number))
+
     def __repr__(self):
         return self.FORMAT.format(self.number)
 

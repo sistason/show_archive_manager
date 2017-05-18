@@ -25,7 +25,7 @@ class ShowManager:
 
         self.arg2show = Argument2Show()
         self.show2status = Show2Status(update_missing)
-        self.status2torrent = Status2Torrent(quality, self.event_loop, update_missing=update_missing)
+        self.status2torrent = Status2Torrent(quality, self.event_loop)
         self.torrent2download = Torrent2Download(auth, self.event_loop)
 
     def _check_init(self):
@@ -39,7 +39,7 @@ class ShowManager:
         if not show_arguments:
             show_arguments = self.get_shows_from_directory()
 
-        # Convert Arguments to shows synchronous, as they might require user input and getting them right is important.
+        # Convert Arguments to shows synchronous, as they might require user input and are fundamental.
         shows = []
         for arg in show_arguments:
             s_ = self.arg2show.argument2show(arg)
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     argparser.add_argument('-a', '--auth', type=str, required=True,
                            help="Either 'user:password' or a path to a pw-file with that format (for premiumize.me)")
     argparser.add_argument('-u', '--update_missing', action="store_true",
-                           help="update shows, check if there are missing episode and download them")
+                           help="update (download) missing episodes/seasons")
     argparser.add_argument('-q', '--quality', type=str, choices=QUALITY_REGEX.get('quality').keys(),
                            help="Choose the quality of the episodes to download")
     argparser.add_argument('-e', '--encoder', type=str, choices=QUALITY_REGEX.get('encoder').keys(),

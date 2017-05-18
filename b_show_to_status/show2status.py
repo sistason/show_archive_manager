@@ -12,16 +12,18 @@ class Show2Status:
         show_, dl_directory_ = information.show, information.download_directory
         logging.debug('Getting status of show "{}" on disk...'.format(show_.name))
 
-        latest_season = show_.seasons.get(max(show_.seasons.keys()))
-        behind = self._get_episodes_missing(show_, latest_season, dl_directory_)
+        seasons_missing, episodes_missing = [], []
+        seasons_to_check = show_.seasons.values() if self.update_missing else [show_.seasons.get(max(show_.seasons))]
+        for season_ in seasons_to_check:
+            if season_.number == 0:
+                continue
+            episodes = self._get_episodes_missing(show_, season_, dl_directory_)
+            if len(episodes) > 0.9*len(season_.episodes):
+                seasons_missing.append(season_)
+            else:
+                episodes_missing.extend(episodes)
 
-        if self.update_missing:
-            missing = [self._get_episodes_missing(show_, season, dl_directory_) for season in show_.seasons.values()]
-            [missing.remove(behind) for behind in behind if behind in missing]
-        else:
-            missing = []
-
-        status = Status(behind, missing)
+        status = Status(seasons_missing, episodes_missing)
         logging.info('{} {}'.format(information.show.name, status))
         return status
 
@@ -32,7 +34,7 @@ class Show2Status:
 
         episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
         if not episodes_in_dir:
-            logging.warning('Directory for season {} does not exist!'.format(season.number))
+            logging.debug('Directory for season {} does not exist!'.format(season.number))
 
         missing_ = [ep for ep in season.get_aired_episodes()
                     if ep not in episodes_in_dir]
