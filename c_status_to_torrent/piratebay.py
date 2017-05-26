@@ -46,16 +46,20 @@ class PiratebayGrabber:
                         text = await r_.text()
                         if r_.status == 200:
                             return text
+                        else:
+                            logging.warning('{} returned status "{}", parser corrupt?'.format(self.url, r_.status))
                 except (aiohttp.errors.TimeoutError, aiohttp.errors.ClientConnectionError):
                     await asyncio.sleep(1)
                 except Exception as e:
                     logging.debug(
                         'Caught Exception "{}" while making a get-request to "{}"'.format(e.__class__, url))
                     return
+            logging.warning('Connection to {} failed. Site down?'.format(self.url))
 
-    async def search(self, name, episode):
-        query = "{} {}".format(name, str(episode))
+    async def search(self, show_name, object_):
+        query = "{} {}".format(show_name, object_.str_short())
         query = re.sub(r'[^\w\d\s.]', '', query)
+        logging.debug('Searching piratebay for "{}"'.format(query))
         response = await self._make_request(self.url + '/search/{}/0/99/200'.format(query))
         if response:
             return self.parser.parse_piratebay_response(response)

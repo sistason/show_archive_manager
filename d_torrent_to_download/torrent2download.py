@@ -3,6 +3,7 @@ import logging
 from time import sleep
 import os
 
+from a_argument_to_show.thetvdb_api import Season
 from premiumize_me_dl.premiumize_me_api import PremiumizeMeAPI
 DOWNLOADERS = {'premiumize.me': PremiumizeMeAPI, 'default': PremiumizeMeAPI}
 
@@ -167,14 +168,17 @@ class Torrent2Download:
 
     @staticmethod
     async def _download(download):
-        episode_directory = os.path.join(download.information.download_directory,
-                                         str(download.information.show.get_storage_name()),
-                                         str(download.information.show.seasons.get(download.episode.season)))
-        os.makedirs(episode_directory, exist_ok=True)
+        season_ = download.reference if type(download.reference) == Season else \
+            download.information.show.seasons.get(download.reference.season)
+        season_directory = os.path.join(download.information.download_directory,
+                                        str(download.information.show.get_storage_name()),
+                                        str(season_))
+
+        os.makedirs(season_directory, exist_ok=True)
 
         file_ = await download.downloader.get_file_from_transfer(download.transfer)
         if file_:
-            success = await download.downloader.download_file(file_, episode_directory)
+            success = await download.downloader.download_file(file_, season_directory)
             if success:
                 return file_
 

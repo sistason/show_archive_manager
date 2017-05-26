@@ -220,6 +220,9 @@ class Season:
     def __repr__(self):
         return self.FORMAT.format(self.number)
 
+    def str_short(self):
+        return "s{:02}".format(self.number)
+
     def str_verbose(self):
         return "{}: {}".format(str(self), ', '.join(map(lambda f: f.str_verbose(), self.episodes)))
 
@@ -247,6 +250,9 @@ class Episode:
 
     def __repr__(self):
         return "s{s.season:02}e{s.episode:02}".format(s=self)
+
+    def str_short(self):
+        return self.__repr__()
 
     def str_verbose(self):
         return "{}: {} [#{}]".format(str(self), self.name, self.absolute_episode_number)
