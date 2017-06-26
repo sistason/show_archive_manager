@@ -17,37 +17,47 @@ class Status2Torrent:
     async def get_torrents(self, information):
         logging.debug('Getting torrents for {} ({} eps)...'.format(information.show.name, len(information.status)))
 
-        torrents = await self._get_torrents_async(information)
+        torrents_ = await self._get_torrents_async(information)
+        torrents = []
+        for torrent in torrents_:
+            if type(torrent) is list:
+                [torrents.append(t) for t in torrent]
+            else:
+                torrents.append(torrent)
         logging.info('Found {} torrents to get "{}" up-to-date'.format(sum([len(l) for l in torrents if l]),
-                                                                        information.show.name))
+                                                                       information.show.name))
 
         return torrents
 
     async def _get_torrents_async(self, information):
-        episode_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(information.show.name, ep))
+        episode_tasks = [asyncio.ensure_future(self.get_torrent_for_episode(information.show, ep))
                          for ep in information.status.episodes_missing]
-        season_tasks = [asyncio.ensure_future(self.get_torrent_for_season(information.show.name, se))
+        season_tasks = [asyncio.ensure_future(self.get_torrents_for_season(information.show, se))
                          for se in information.status.seasons_missing]
 
         return await asyncio.gather(*episode_tasks, *season_tasks)
 
-    async def get_torrent_for_season(self, name, season):
-        logging.debug('{} - {}: Searching for torrents...'.format(name, season))
+    async def get_torrents_for_season(self, show, season):
+        logging.debug('{} - {}: Searching for torrents...'.format(show.name, season))
 
-        results = await self.torrent_grabber.search(name, season)
+        results = await self.torrent_grabber.search(show, season)
         filtered_results = self.filter_searches(results, season)
 
-        logging.debug('{} - {}: Found {:2} torrents, {} of those match'.format(name, season, len(results),
+        logging.debug('{} - {}: Found {:2} torrents, {} of those match'.format(show.name, season, len(results),
                                                                            len(filtered_results)))
 
         sorted_results = self.sort_results(filtered_results)
         if sorted_results:
-            return Torrent(season, sorted_results)
+            return [Torrent(season, sorted_results)]
+        else:
+            # No season found, so search for all singular episodes
+            ret = [asyncio.ensure_future(self.get_torrent_for_episode(show, ep)) for ep in season.episodes]
+            return await asyncio.gather(*ret)
 
-    async def get_torrent_for_episode(self, name, episode):
-        logging.debug('{} - : Searching for torrents...'.format(name, episode))
+    async def get_torrent_for_episode(self, show, episode):
+        logging.debug('{} - : Searching for torrents...'.format(show.name, episode))
 
-        results = await self.torrent_grabber.search(name, episode)
+        results = await self.torrent_grabber.search(show, episode)
         filtered_results = self.filter_searches(results, episode)
 
         logging.debug('{}: Found {:2} torrents, {} of those match'.format(episode, len(results),

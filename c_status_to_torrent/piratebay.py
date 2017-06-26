@@ -56,8 +56,8 @@ class PiratebayGrabber:
                     return
             logging.warning('Connection to {} failed. Site down?'.format(self.url))
 
-    async def search(self, show_name, object_):
-        query = "{} {}".format(show_name, object_.str_short())
+    async def search(self, show, object_):
+        query = "{} {}".format(show.get_search_query(), object_.str_short())
         query = re.sub(r'[^\w\d\s.]', '', query)
         logging.debug('Searching piratebay for "{}"'.format(query))
         response = await self._make_request(self.url + '/search/{}/0/99/200'.format(query))

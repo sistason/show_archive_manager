@@ -190,6 +190,12 @@ class TVDBShow:
         return '{:25} [{:9}] | {} | {:3} episodes | {}'.format(self.name[:25], self.imdb_id, self.aired.year,
                                                         len(self.episodes), self.overview[:40])
 
+    def get_search_query(self):
+        """ Get the show name to use for searching torrents.
+
+        Remove the year of the show, like Doctor Who (2005), for that."""
+        return re.sub(r'\(\d{4}\)(?<=$)', '', self.name).strip()
+
     def __len__(self):
         return len(self.episodes)
 
