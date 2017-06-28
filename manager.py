@@ -96,7 +96,7 @@ if __name__ == '__main__':
                            help='Manage these shows or let free to get the shows automatically from download_directory')
     argparser.add_argument('download_directory', type=argcheck_dir, default='.',
                            help='Set the directory to sort the file(s) into.')
-    argparser.add_argument('-a', '--auth', type=str, required=True,
+    argparser.add_argument('-a', '--auth', type=str,
                            help="Either 'user:password' or a path to a pw-file with that format (for premiumize.me)")
     argparser.add_argument('-u', '--update_missing', action="store_true",
                            help="update (download) missing episodes/seasons")
