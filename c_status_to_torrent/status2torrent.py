@@ -100,13 +100,14 @@ GRABBER = {'piratebay': PiratebayGrabber, 'default': PiratebayGrabber}
 
 QUALITY_REGEX = {
     'quality': {
-        '1080p': re.compile(r'(?i)1080p'),
-        '480p': re.compile(r'(?i)480p|HDTV'),
-        '720p': re.compile(r'(?i)720p'),
+        '1080': re.compile(r'(?i)1080p'),
+        '480': re.compile(r'(?i)480p|HDTV|web-?dl'),
+        '720': re.compile(r'(?i)720p'),
+        'HD': re.compile(r'(?i)720p|1080p'),
     },
     'encoder': {
-        'x264': re.compile(r'(?i)[hx]264'),
-        'x265': re.compile(r'(?i)[hx]265'),
+        '264': re.compile(r'(?i)[hx]264'),
+        '265': re.compile(r'(?i)[hx]265'),
         'xvid': re.compile(r'(?i)XviD'),
     }
 }

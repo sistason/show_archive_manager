@@ -101,9 +101,9 @@ if __name__ == '__main__':
     argparser.add_argument('-u', '--update_missing', action="store_true",
                            help="update (download) missing episodes/seasons")
     argparser.add_argument('-q', '--quality', type=str, choices=QUALITY_REGEX.get('quality').keys(),
-                           help="Choose the quality of the episodes to download")
+                           help="Choose the quality of the episodes to download", default='720')
     argparser.add_argument('-e', '--encoder', type=str, choices=QUALITY_REGEX.get('encoder').keys(),
-                           help="Choose the encoder of the episodes to download")
+                           help="Choose the encoder of the episodes to download", default='264')
     argparser.add_argument('-v', '--verbose', action='store_true')
 
     args = argparser.parse_args()
