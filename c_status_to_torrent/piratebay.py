@@ -32,9 +32,9 @@ class PiratebayGrabber:
 
         self.parser = PirateBayParser()
 
-    def close(self):
+    async def close(self):
         if self.aiohttp_session is not None:
-            self.aiohttp_session.close()
+            await self.aiohttp_session.close()
 
     async def _make_request(self, url):
         async with self.max_simultaneous_requests:
@@ -48,7 +48,7 @@ class PiratebayGrabber:
                             return text
                         else:
                             logging.warning('{} returned status "{}", parser corrupt?'.format(self.url, r_.status))
-                except (aiohttp.errors.TimeoutError, aiohttp.errors.ClientConnectionError):
+                except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
                     await asyncio.sleep(1)
                 except Exception as e:
                     logging.debug(

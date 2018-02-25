@@ -12,9 +12,9 @@ class Argument2Show:
 
     def argument2show(self, argument_show):
         logging.debug('Converting argument "{}" to show...'.format(argument_show))
-        imdb_id = re.search(r'(?P<id>tt\d{7})', argument_show)
+        imdb_id = self.get_imdb_id(argument_show)
         if imdb_id:
-            show = self.tvdb_api.get_show_by_imdb_id(imdb_id.group('id'))
+            show = self.tvdb_api.get_show_by_imdb_id(imdb_id)
             logging.info('Found show "{}" for argument "{}"'.format(show, argument_show))
             return show
 
@@ -24,6 +24,12 @@ class Argument2Show:
             year = year.group(1)
 
         return self._search_for_title(argument_show, year=year)
+
+    @staticmethod
+    def get_imdb_id(argument_show):
+        imdb_id = re.search(r'(?P<id>tt\d{7})', argument_show)
+        if imdb_id:
+            return imdb_id.group('id')
 
     def _search_for_title(self, title, year=None):
         shows = self.tvdb_api.get_shows_by_search(title, year=year)

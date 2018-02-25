@@ -11,8 +11,8 @@ class Status2Torrent:
         self.torrent_grabber = torrenter(event_loop)
         self.quality = quality if quality else {}
 
-    def close(self):
-        self.torrent_grabber.close()
+    async def close(self):
+        await self.torrent_grabber.close()
 
     async def get_torrents(self, information):
         logging.debug('Getting torrents for {} ({} eps)...'.format(information.show.name, len(information.status)))
@@ -22,7 +22,7 @@ class Status2Torrent:
         for torrent in torrents_:
             if type(torrent) is list:
                 [torrents.append(t) for t in torrent]
-            else:
+            elif torrent is not None:
                 torrents.append(torrent)
         logging.info('Found {} torrents to get "{}" up-to-date'.format(sum([len(l) for l in torrents if l]),
                                                                        information.show.name))
@@ -44,7 +44,7 @@ class Status2Torrent:
         filtered_results = self.filter_searches(results, season)
 
         logging.debug('{} - {}: Found {:2} torrents, {} of those match'.format(show.name, season, len(results),
-                                                                           len(filtered_results)))
+                                                                               len(filtered_results)))
 
         sorted_results = self.sort_results(filtered_results)
         if sorted_results:
@@ -104,10 +104,12 @@ QUALITY_REGEX = {
         '480': re.compile(r'(?i)480p|HDTV|web-?dl'),
         '720': re.compile(r'(?i)720p'),
         'HD': re.compile(r'(?i)720p|1080p'),
+        'all': re.compile(r'.*'),
     },
     'encoder': {
         '264': re.compile(r'(?i)[hx]264'),
         '265': re.compile(r'(?i)[hx]265'),
         'xvid': re.compile(r'(?i)XviD'),
+        'all': re.compile(r'.*'),
     }
 }

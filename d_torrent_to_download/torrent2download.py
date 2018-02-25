@@ -1,6 +1,6 @@
+import datetime
 import asyncio
 import logging
-from time import sleep
 import os
 
 from a_argument_to_show.thetvdb_api import Season
@@ -9,19 +9,19 @@ DOWNLOADERS = {'premiumize.me': PremiumizeMeAPI, 'default': PremiumizeMeAPI}
 
 
 class Download:
-    def __init__(self, information, reference, upload, downloader):
+    def __init__(self, information, reference, transfer, downloader):
         self.information = information
         self.reference = reference
         self.downloader = downloader
 
-        self.upload = upload
         self.transfer = None
+        self.start_time = None
 
         self.retries = 10
 
 
 class Torrent2Download:
-    CHECK_EVERY = 5
+    CHECK_EVERY = 2
     WORKER_PER_SHOW = 5
 
     def __init__(self, login, event_loop):
@@ -48,7 +48,29 @@ class Torrent2Download:
 
         asyncio.wait(self.all_workers, timeout=self.CHECK_EVERY)
 
-        self.torrent_downloader.close()
+        await self.torrent_downloader.close()
+
+    async def download_from_cache(self, information):
+        if self._transfers_updater is None:
+            await self._wait_for_transfers()
+
+        show_transfers = [transfer for transfer in self.transfers if information.show.name in transfer.name]
+        for show_transfer in show_transfers:
+            for episode in information.status.episodes_missing:
+                if episode.get_regex().search(show_transfer.name):
+                    print('Found ep {} in transfer {}'.format(episode.episode, show_transfer.name))
+                    if await self.torrent_downloader.download_transfer(show_transfer, information.download_directory):
+                        information.status.episodes_missing.remove(episode)
+                        await self.torrent_downloader.delete(show_transfer)
+
+            for season in information.status.seasons_missing:
+                if season.get_regex().search(show_transfer.name):
+                    print('Found se {} in transfer {}'.format(season.number, show_transfer.name))
+                    if await self.torrent_downloader.download_transfer(show_transfer, information.download_directory):
+                        information.status.seasons_missing.remove(season)
+                        await self.torrent_downloader.delete(show_transfer)
+
+        return information
 
     async def _update_transfers(self):
         self.transfers = await self.torrent_downloader.get_transfers()
@@ -70,10 +92,11 @@ class Torrent2Download:
     async def _start_torrenting(self, information):
         logging.debug('Start torrenting {}...'.format(information.show.name))
 
-        upload_ids = []
-        upload_tasks = [asyncio.ensure_future(self._upload_torrent(torrent, upload_ids, information))
+        #FIXME: is the list the same reference for all tasks? call by value or reference?
+        transfer_list_ = []
+        tasks = [asyncio.ensure_future(self._upload_torrent(torrent, transfer_list_, information))
                         for torrent in information.torrents]
-        await asyncio.gather(*upload_tasks)
+        await asyncio.gather(*tasks)
 
         if self._transfers_updater is None:
             await self._wait_for_transfers()
@@ -87,15 +110,15 @@ class Torrent2Download:
         else:
             logging.warning('Could not get torrent-transfers in time!')
 
-    async def _upload_torrent(self, torrent, upload_ids, information):
+    async def _upload_torrent(self, torrent, transfer_list_, information):
         if torrent is None:
             return
         for link in torrent.links:
-            upload_ = await self.torrent_downloader.upload(link)
-            if upload_ is not None:
-                if upload_.id not in upload_ids:
-                    upload_ids.append(upload_.id)
-                    download = Download(information, torrent.reference, upload_, self.torrent_downloader)
+            transfer = await self.torrent_downloader.upload(link)
+            if transfer is not None:
+                if transfer.id not in transfer_list_:
+                    transfer_list_.append(transfer.id)
+                    download = Download(information, torrent.reference, transfer, self.torrent_downloader)
                     await self.downloads_queue.put(download)
                     return
                 logging.warning('Link "{}" for "{}" was a duplicate'.format(link[:50], torrent.reference))
@@ -107,10 +130,16 @@ class Torrent2Download:
                 # Allow a context switch here so that other workers can get_nowait and realize the queue is only 1 elem
                 await asyncio.sleep(.1)
 
-                if self._is_transfer_ready_to_download(download):
+                if download.start_time is None:
+                    download.start_time = datetime.datetime.now()
+
+                finished = self.torrent_downloader.is_transfer_finished(download.transfer, download.start_time)
+                if finished:
                     insert_again = await self._worker_handle_download(download)
-                else:
+                elif finished is None:
                     insert_again = await self._worker_handle_transfer_progress(download)
+                else:
+                    insert_again = False
 
                 if insert_again:
                     self.downloads_queue.put_nowait(download)
@@ -129,7 +158,7 @@ class Torrent2Download:
     @staticmethod
     async def _worker_handle_transfer_progress(download):
         if download.transfer is None:
-            logging.error('Error torrenting {}: Torrent not found anymore!'.format(
+            logging.warning('Warning torrenting {}: Torrent not found anymore!'.format(
                 download.information.show.name))
             # Reinsert download $retries times, as premiumize.me forgets the transfer between "finished" and "ready"
             if download.retries > 0:
@@ -155,16 +184,6 @@ class Torrent2Download:
         else:
             logging.error('Download {} {} was not downloadeable.'.format(download.information.show.name,
                                                                          download.reference))
-
-    def _get_torrent_transfer(self, upload):
-        for transfer in self.transfers:
-            if transfer.id == upload.id:
-                return transfer
-
-    def _is_transfer_ready_to_download(self, download):
-        transfer = self._get_torrent_transfer(download.upload)
-        download.transfer = transfer
-        return transfer is not None and not transfer.is_running() and transfer.status != 'error'
 
     @staticmethod
     async def _download(download):

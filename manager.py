@@ -65,29 +65,39 @@ class ShowManager:
         show_infos.status = self.show2status.analyse(show_infos)
         if not len(show_infos.status):
             return
-        show_infos.torrents = await self.status2torrent.get_torrents(show_infos)
-        if not show_infos.torrents:
+        show_infos_remaining = await self.torrent2download.download_from_cache(show_infos)
+        show_infos_remaining.torrents = await self.status2torrent.get_torrents(show_infos_remaining)
+        if not show_infos_remaining.torrents:
             return
-        await self.torrent2download.download(show_infos)
+        await self.torrent2download.download(show_infos_remaining)
 
     def close(self):
-        self.status2torrent.torrent_grabber.close()
+        self.event_loop.run_until_complete(self.status2torrent.torrent_grabber.close())
         self.event_loop.run_until_complete(self.torrent2download.close())
         self.event_loop.close()
 
     def get_shows_from_directory(self):
-        base_dir = os.path.abspath(self.download_directory)
-        return [listing for listing in os.listdir(base_dir)
-                if os.path.isdir(os.path.join(base_dir, listing)) and not listing.startswith('#')]
+        folder_name = os.path.dirname(self.download_directory)
+        directory_imdb_id = self.arg2show.get_imdb_id(folder_name)
+        if directory_imdb_id:
+            # set the download_directory as ../, as we are in a season-directory apparently
+            self.download_directory = os.path.join(self.download_directory, os.pardir)
+            return [directory_imdb_id]
+
+        return [listing for listing in os.listdir(self.download_directory)
+                if os.path.isdir(os.path.join(self.download_directory, listing)) and not listing.startswith('#')]
 
 
 if __name__ == '__main__':
     import argparse
 
-
     def argcheck_dir(string):
         if os.path.isdir(string) and os.access(string, os.W_OK) and os.access(string, os.R_OK):
-            return os.path.abspath(string)
+            directory_path = os.path.abspath(string)
+            if os.path.isdir(directory_path) and not directory_path.endswith('/'):
+                directory_path += '/'
+            return directory_path
+
         raise argparse.ArgumentTypeError('{} is no directory or isn\'t writeable'.format(string))
 
 

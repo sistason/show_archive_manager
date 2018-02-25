@@ -252,7 +252,7 @@ class Episode:
         return default
 
     def get_regex(self):
-        return re.compile(r'(?i)s?0*(?P<season>{s.season})[ex]0*(?P<episode>{s.episode})(?!\d)'.format(s=self))
+        return re.compile(r'(?i)s?0*(?P<season>{s.season})\W?[ex]0*(?P<episode>{s.episode})(?!\d)'.format(s=self))
 
     def __repr__(self):
         return "s{s.season:02}e{s.episode:02}".format(s=self)
