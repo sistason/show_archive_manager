@@ -6,11 +6,9 @@ class Status:
     def __str__(self):
         season_, episode_ = '', ''
         if self.seasons_missing:
-            season_ = 'has {} missing season'.format(len(self.seasons_missing))
-            season_ += 's' if len(self.seasons_missing) > 1 else ''
+            season_ = 'has seasons missing: {}'.format(self.seasons_missing)
         if self.episodes_missing:
-            episode_ = 'has {} missing episode'.format(len(self.episodes_missing))
-            episode_ += 's' if len(self.episodes_missing) > 1 else ''
+            episode_ = 'has episodes missing: {}'.format(self.episodes_missing)
 
         return ' and '.join([i for i in (season_, episode_) if i])
 

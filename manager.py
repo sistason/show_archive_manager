@@ -14,7 +14,7 @@ class Information:
         self.download_directory = download_directory
         self.show = None
         self.status = None
-        self.torrents = None
+        self.torrents = []
 
 
 class ShowManager:
@@ -67,7 +67,7 @@ class ShowManager:
             return
         show_infos_remaining = await self.torrent2download.download_from_cache(show_infos)
         show_infos_remaining.torrents = await self.status2torrent.get_torrents(show_infos_remaining)
-        if not show_infos_remaining.torrents:
+        if not show_infos_remaining.torrents and self.torrent2download.downloads_queue.empty():
             return
         await self.torrent2download.download(show_infos_remaining)
 
