@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 from b_show_to_status.show_status import Status
 
@@ -31,10 +32,9 @@ class Show2Status:
         show_directory = os.path.join(directory, show.get_storage_name())
         if not os.path.exists(show_directory):
             logging.warning('Directory for show "{}" does not exist!'.format(show.name))
-
-        episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
-        if not episodes_in_dir:
-            logging.debug('Directory for season {} does not exist!'.format(season.number))
+            episodes_in_dir = []
+        else:
+            episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
 
         missing_ = [ep for ep in season.get_aired_episodes()
                     if ep not in episodes_in_dir]
@@ -44,8 +44,17 @@ class Show2Status:
 
     @staticmethod
     def _get_episodes_in_season_directory(season, show_directory):
-        season_directory = os.path.join(show_directory, str(season))
-        episodes = os.listdir(season_directory) if os.path.exists(season_directory) else []
+        match_directories = [dir for dir in os.scandir(show_directory)
+                             if dir.is_dir() and re.search(r'(?i)Season.0*{}'.format(season.number), dir.name)]
+        if len(match_directories) == 0:
+            logging.debug('Directory for season {} does not exist!'.format(season.number))
+            return []
+        if len(match_directories) == 1:
+            episodes = os.listdir(os.path.join(show_directory, match_directories[0]))
+        else:
+            files_in_dirs = [(dir, len(os.listdir(os.path.join(show_directory, dir)))) for dir in match_directories]
+            most_likely_directory = max(files_in_dirs, key=lambda f: f[1])[0]
+            episodes = os.listdir(os.path.join(show_directory, most_likely_directory))
 
         return [episode for episode in season.get_aired_episodes()
                 if [e for e in episodes if episode.get_regex().search(e)]]
