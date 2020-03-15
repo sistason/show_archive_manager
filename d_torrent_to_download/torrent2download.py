@@ -70,8 +70,9 @@ class Torrent2Download:
         self.shutdown = True
         [w.cancel() for w in self.tasks]
 
-        logging.info('Waiting 5 secs for all downloaders to abort...')
-        await asyncio.wait(self.tasks, timeout=5)
+        if self.tasks:
+            logging.info('Waiting 5 secs for all downloaders to abort...')
+            await asyncio.wait(self.tasks, timeout=5)
 
         await self.torrent_downloader.close()
 

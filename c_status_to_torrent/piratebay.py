@@ -74,17 +74,17 @@ class PiratebayGrabber:
                         text = await r_.text()
                         if r_.status == 200:
                             return text
-                        if r_.status in [400, 401, 402, 403, 404, 500, 502, 503]:
+                        if r_.status in [400, 401, 402, 403, 404, 500, 502, 503, 521]:
                             continue
                         else:
-                            logging.warning('{} returned status "{}", parser corrupt?'.format(self.proxy_url, r_.status))
+                            logging.warning('{} returned status "{}", parser corrupt?'.format(r_.host, r_.status))
                 except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
                     await asyncio.sleep(1)
                 except Exception as e:
                     logging.debug(
                         'Caught Exception "{}" while making a get-request to "{}"'.format(e.__class__, url))
                     return
-            logging.warning('Connection to {} failed. Site down?'.format(self.proxy_url))
+            logging.warning('Connection to {} failed. Site down?'.format(url[:30]))
 
     async def search(self, show, object_):
         query = "{} {}".format(show.get_search_query(), object_.str_short())

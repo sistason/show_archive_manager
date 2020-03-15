@@ -221,7 +221,7 @@ class Season:
         return int(match.group(1)) if match else 0
 
     def get_regex(self):
-        return re.compile(r'(?i)s?0*(?P<season>{})'.format(self.number))
+        return re.compile(r'(?i)s?0*(?P<season>{})(?=\D)'.format(self.number))
 
     def __repr__(self):
         return self.FORMAT.format(self.number)
