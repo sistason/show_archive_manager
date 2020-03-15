@@ -6,6 +6,10 @@ import bs4
 import re
 
 
+# Encoding errors are expected at weird proxies
+logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)
+
+
 class PirateBayResult:
     def __init__(self, beautiful_soup_tag):
         self.title = self.magnet = ''
