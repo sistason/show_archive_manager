@@ -51,7 +51,7 @@ class PiratebayGrabber:
                 self.aiohttp_session = aiohttp.ClientSession(loop=self.event_loop)
             for retry in range(3):
                 try:
-                    async with self.aiohttp_session.post(url, timeout=5, verify=False) as r_:
+                    async with self.aiohttp_session.post(url, timeout=5, ssl=False) as r_:
                         text = await r_.text()
                         if r_.status == 200:
                             return text
