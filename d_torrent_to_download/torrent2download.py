@@ -38,7 +38,7 @@ class Torrent2Download:
         self.shutdown = True
         [w.cancel() for w in self.all_workers]
 
-        asyncio.wait(self.all_workers, timeout=self.CHECK_EVERY)
+        await asyncio.wait(self.all_workers, timeout=self.CHECK_EVERY)
 
         await self.torrent_downloader.close()
 

@@ -39,7 +39,7 @@ class ShowManager:
         if not show_arguments:
             show_arguments = self.get_shows_from_directory()
 
-        # Convert Arguments to shows synchronous, as they might require user input and are fundamental.
+        # Convert Arguments to shows synchronously, as they might require user input and are fundamental.
         shows = []
         for arg in show_arguments:
             s_ = self.arg2show.argument2show(arg)
