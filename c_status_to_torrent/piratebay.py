@@ -55,7 +55,7 @@ class PiratebayGrabber:
                         text = await r_.text()
                         if r_.status == 200:
                             return text
-                        if r_.status == 404:
+                        if r_.status in [400, 401, 402, 403, 404, 503, 500]:
                             continue
                         else:
                             logging.warning('{} returned status "{}", parser corrupt?'.format(self.proxy_url, r_.status))
