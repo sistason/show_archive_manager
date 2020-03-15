@@ -2,6 +2,7 @@ import datetime
 import asyncio
 import logging
 import os
+import re
 
 from a_argument_to_show.thetvdb_api import Episode
 from premiumize_me_dl.premiumize_me_api import PremiumizeMeAPI
@@ -34,13 +35,15 @@ class Torrent2Download:
         self.tasks = []
 
     async def _download_torrent(self, torrent, information):
-        for torent_link in torrent.links:
+        for torrent_link in torrent.links:
             async with self.download_semaphore:
                 if self.shutdown:
                     return
 
-                logging.info('Uploading torrent {}...'.format(torrent.reference))
-                transfer = await self.torrent_downloader.upload(torent_link)
+                _dn = re.search(r'&dn=(.*?)&', torrent_link)
+                logging.info('Uploading torrent {} ({})...'.format(torrent.reference,
+                                                                   _dn.group(1) if _dn else torrent_link[40:80]))
+                transfer = await self.torrent_downloader.upload(torrent_link)
                 if not transfer:
                     return
 
@@ -56,7 +59,6 @@ class Torrent2Download:
                     download_directory = os.path.join(download_directory, str(season_))
 
                 logging.info('Downloading {}...'.format(transfer.name))
-                logging.debug('{} -> {}'.format(transfer.name, download_directory))
                 success = await self.torrent_downloader.download_transfer(transfer, download_directory)
                 if success:
                     logging.info('Success! Deleting torrent...')
@@ -76,7 +78,8 @@ class Torrent2Download:
     async def download(self, information):
         logging.info('Downloading {}...'.format(information.show.name))
 
-        downloads = asyncio.gather(*[self._download_torrent(torrent, information) for torrent in information.torrents])
+        downloads = asyncio.gather(*[self._download_torrent(torrent, information)
+                                     for torrent in information.torrents if torrent])
         self.tasks.append(downloads)
         await downloads
 

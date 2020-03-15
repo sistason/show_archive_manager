@@ -41,7 +41,7 @@ class Status2Torrent:
         logging.debug('{} - {}: Searching for torrents...'.format(show.name, season))
 
         results = await self.torrent_grabber.search(show, season)
-        filtered_results = self.filter_searches(results, season)
+        filtered_results = self.filter_searches(results, season, show)
 
         logging.debug('{} - {}: Found {:2} torrents, {} of those match'.format(show.name, season, len(results),
                                                                                len(filtered_results)))
@@ -58,7 +58,7 @@ class Status2Torrent:
         logging.debug('{} - : Searching for torrents...'.format(show.name, episode))
 
         results = await self.torrent_grabber.search(show, episode)
-        filtered_results = self.filter_searches(results, episode)
+        filtered_results = self.filter_searches(results, episode, show)
 
         logging.debug('{}: Found {:2} torrents, {} of those match'.format(episode, len(results),
                                                                           len(filtered_results)))
@@ -67,16 +67,17 @@ class Status2Torrent:
         if sorted_results:
             return Torrent(episode, sorted_results)
 
-    def _torrent_matches(self, result, object):
-        for filter_re in [object.get_regex(),
+    def _torrent_matches(self, result, type_, show):
+        for filter_re in [re.compile(re.sub(r'\W', '.?', show.name)),
+                          type_.get_regex(),
                           QUALITY_REGEX['encoder'].get(self.quality.get('encoder')),
                           QUALITY_REGEX['quality'].get(self.quality.get('quality'))]:
             if filter_re and not filter_re.search(result.title):
                 return False
         return True
 
-    def filter_searches(self, results, episode):
-        return [result for result in results if self._torrent_matches(result, episode)]
+    def filter_searches(self, results, type_, show):
+        return [result for result in results if self._torrent_matches(result, type_, show)]
 
     @staticmethod
     def sort_results(results):
