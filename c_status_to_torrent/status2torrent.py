@@ -61,7 +61,7 @@ class Status2Torrent:
         filtered_results = self.filter_searches(results, episode)
 
         logging.debug('{}: Found {:2} torrents, {} of those match'.format(episode, len(results),
-                                                                           len(filtered_results)))
+                                                                          len(filtered_results)))
 
         sorted_results = self.sort_results(filtered_results)
         if sorted_results:
