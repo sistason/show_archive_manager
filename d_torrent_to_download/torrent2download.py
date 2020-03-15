@@ -21,6 +21,68 @@ class Download:
 
 
 class Torrent2Download:
+    CONCURRENT_DOWNLOADS = 15
+
+    def __init__(self, login, event_loop):
+        self.event_loop = event_loop
+        downloader = DOWNLOADERS.get('default')
+        self.torrent_downloader = downloader(login, self.event_loop)
+
+        self.download_semaphore = asyncio.Semaphore(self.CONCURRENT_DOWNLOADS)
+
+        self.shutdown = False
+        self.tasks = []
+
+    async def _download_torrent(self, torrent, information):
+        async with self.download_semaphore:
+            if self.shutdown:
+                return
+
+            logging.info('Uploading torrent {}...'.format(torrent.title))
+            transfer = await self.torrent_downloader.upload(torrent)
+            if not transfer:
+                return
+
+            # cleanup on shutdown interruption
+            if self.shutdown:
+                await self.torrent_downloader.delete(transfer)
+                return
+
+            download_directory = os.path.join(information.download_directory,
+                                              str(information.show.get_storage_name()))
+            if type(torrent.reference) == Episode:
+                season_ = information.show.seasons.get(torrent.reference.season)
+                download_directory = os.path.join(download_directory, str(season_))
+
+            logging.info('Downloading {}...'.format(transfer.name))
+            success = await self.torrent_downloader.download_transfer(transfer, download_directory)
+            if success:
+                logging.info('Success! Deleting torrent...')
+                await self.torrent_downloader.delete(transfer)
+                return success
+            logging.error('Error! Could not download torrent, was {}'.format(success))
+
+    async def close(self):
+        self.shutdown = True
+        [w.cancel() for w in self.tasks]
+
+        logging.info('Waiting 5 secs for all downloaders to abort...')
+        [await asyncio.wait(w, timeout=5) for w in self.tasks]
+
+        await self.torrent_downloader.close()
+
+    async def download(self, information):
+        logging.info('Downloading {}...'.format(information.show.name))
+
+        downloads = asyncio.gather(*[self._download_torrent(torrent, information) for torrent in information.torrents])
+        self.tasks.append(downloads)
+        await downloads
+
+    def __bool__(self):
+        return bool(self.torrent_downloader)
+
+
+class Torrent2Download_:
     CHECK_EVERY = 2
     WORKER_PER_SHOW = 5
 
