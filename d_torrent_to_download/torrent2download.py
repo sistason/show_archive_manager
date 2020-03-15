@@ -56,6 +56,7 @@ class Torrent2Download:
                     download_directory = os.path.join(download_directory, str(season_))
 
                 logging.info('Downloading {}...'.format(transfer.name))
+                logging.debug('{} -> {}'.format(transfer.name, download_directory))
                 success = await self.torrent_downloader.download_transfer(transfer, download_directory)
                 if success:
                     logging.info('Success! Deleting torrent...')
@@ -68,7 +69,7 @@ class Torrent2Download:
         [w.cancel() for w in self.tasks]
 
         logging.info('Waiting 5 secs for all downloaders to abort...')
-        [await asyncio.wait(w, timeout=5) for w in self.tasks]
+        await asyncio.wait(self.tasks, timeout=5)
 
         await self.torrent_downloader.close()
 
