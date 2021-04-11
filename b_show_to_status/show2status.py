@@ -31,7 +31,8 @@ class Show2Status:
     def _get_episodes_missing(self, show, season, directory):
         show_directory = os.path.join(directory, show.get_storage_name())
         if not os.path.exists(show_directory):
-            logging.warning('Directory for show "{}" does not exist!'.format(show.name))
+            logging.warning('Directory for show "{}" did not exist, creating...'.format(show.name))
+            self._create_show_directory(show, directory)
             episodes_in_dir = []
         else:
             episodes_in_dir = self._get_episodes_in_season_directory(season, show_directory)
@@ -41,6 +42,10 @@ class Show2Status:
 
         logging.debug('{} - Missing episodes of season {}: {}'.format(show, season.number, list(map(str, missing_))))
         return missing_
+
+    @staticmethod
+    def _create_show_directory(show, directory):
+        os.mkdir(os.path.join(directory, str(show.get_storage_name())))
 
     @staticmethod
     def _get_episodes_in_season_directory(season, show_directory):
